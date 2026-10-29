@@ -12,7 +12,7 @@ if(!r.ok||!payload.token_hash)throw Error(payload.error||'Unable to verify your 
 if(payload.target_surface!=='lab'||payload.target_portal!=='lab_account')throw Error('This sign-in link is for another portal.');
 const next=new URL(payload.next_path||'/dashboard.html',location.origin);
 if(next.origin!==location.origin||next.pathname!=='/dashboard.html'||next.search||next.hash)throw Error('Invalid portal destination.');
-const sb=window.supabase.createClient(cfg.url,cfg.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const sb=window.supabase.createClient(cfg.url,cfg.key,{auth:{storageKey:'s4u_lab_account_auth_v1',persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const {data,error}=await sb.auth.verifyOtp({token_hash:payload.token_hash,type:'magiclink'});
 if(error||!data?.session)throw error||Error('Unable to establish secure session.');
 status.textContent='Signed in successfully. Opening your Lab Account…';
