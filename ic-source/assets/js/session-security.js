@@ -1,1 +1,0 @@
-(()=>{'use strict';window.S4UICAuthReady=(async()=>{const sb=window.S4UGetSupabaseClient();const {data:{session},error}=await sb.auth.getSession();if(error||!session){location.replace('https://portal.screenings4u.com/');throw Error('Sign in through the central portal')}return{user:session.user,session};})();window.S4UICAuthReady.catch(()=>{});})();

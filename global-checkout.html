@@ -1,0 +1,36 @@
+<!doctype html>
+<html class="s4u-auth-pending" lang="en">
+<head><link rel="preconnect" href="https://elpbnytpciqnbexiaebp.supabase.co" crossorigin><link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin><meta name="robots" content="noindex,nofollow,noarchive,nosnippet"><meta name="googlebot" content="noindex,nofollow,noarchive,nosnippet">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#102f55">
+<title>Global Checkout | screenings4u DOT</title>
+<link rel="icon" type="image/png" href="/images/fav.png">
+<link rel="stylesheet" href="/assets/css/global-checkout.css?v=20261001-ctpa-fast20">
+<script src="https://js.stripe.com/v3/"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/assets/js/config.js?v=20261001-ctpa-fast20"></script>
+
+<script src="/assets/js/session-security.js?v=20261001-ctpa-fast20"></script>
+<style>html.s4u-auth-pending body{visibility:hidden!important}</style><script>document.documentElement.classList.add('s4u-auth-pending')</script>
+</head>
+<body data-portal-page="global-checkout">
+<div class="checkout-shell">
+<header class="checkout-header">
+  <div><img src="images/logo2.png" alt="screenings4u DOT"><div><small>SECURE CHECKOUT</small><h1>Global Checkout</h1></div></div>
+  <a class="back" href="/subscription.html">Back to Subscription</a>
+</header>
+<main class="checkout-main">
+  <section class="checkout-copy"><span>SCREENINGS4U DOT</span><h2 id="pageTitle">Secure account checkout</h2><p id="pageText">Renew subscriptions, pay screenings4u invoices, and complete approved add-on payments from one secure checkout.</p></section>
+  <div id="message" class="message" aria-live="polite"></div>
+  <div class="checkout-grid">
+    <div>
+      <section class="card"><h3>Account</h3><div class="detail-grid" id="accountDetails"><div class="skeleton">Loading account…</div></div></section>
+      <section class="card"><h3>Checkout Item</h3><div id="lineItems" class="line-items"><div class="skeleton">Loading checkout item…</div></div></section>
+      <section class="card"><h3>Payment</h3><div id="paymentHost"><p class="muted">Your secure payment form will load after the checkout item is verified.</p></div><div id="paymentError" class="payment-error"></div></section>
+    </div>
+    <aside><section class="card summary"><h3>Checkout Summary</h3><div class="sumrow"><span>Type</span><strong id="summaryType">—</strong></div><div class="sumrow"><span>Account</span><strong id="summaryAccount">—</strong></div><div class="sumrow"><span>Reference</span><strong id="summaryRef">—</strong></div><div class="sumrow total"><span>Total</span><strong id="summaryTotal">$0.00</strong></div><button class="pay" id="payButton" disabled>Continue to Payment</button><p class="secure-note">Payments are processed securely by Stripe. screenings4u does not store full card numbers.</p></section></aside>
+  </div>
+</main>
+</div>
+<script src="/assets/js/global-checkout.js?v=20261001-ctpa-fast20"></script>
+</body>
+</html>
