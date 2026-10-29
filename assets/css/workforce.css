@@ -73,3 +73,28 @@ body[data-portal-page="documents"] .results-view,body[data-portal-page="billing"
 body[data-portal-page="documents"] #documentsNotice,body[data-portal-page="billing"] #billingNotice{margin:0}
 @media(max-width:900px){body[data-portal-page="documents"] .dash-kpis,body[data-portal-page="billing"] .dash-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){body[data-portal-page="documents"] .dash-kpis,body[data-portal-page="billing"] .dash-kpis{grid-template-columns:1fr}body[data-portal-page="documents"] .panel-body,body[data-portal-page="billing"] .panel-body{padding:16px}}
+
+
+/* Lab Account supply ordering uses the existing Workforce visual system. */
+.supplies-center{display:grid;gap:18px;min-width:0}
+.supplies-center .lab-overview-head{margin:0;align-items:center}
+.supplies-center #supplyContent:not([hidden]){display:grid;gap:18px;min-width:0}
+.supplies-center .dash-kpis{margin:0}
+.supplies-center .dash-card h3{margin:0 0 12px}
+.supplies-center .dash-columns{margin:0;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr)}
+.supply-search,.supply-item label,.supply-form label{display:grid;gap:7px;color:var(--ink);font-size:.8rem;font-weight:700}
+.supply-search input,.supply-item input,.supply-fields input,.supply-form textarea,.supplies-center select{padding:10px 12px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink);font:inherit;width:100%;min-width:0}
+.supply-item{display:grid;grid-template-columns:minmax(0,1fr) 100px;gap:16px;align-items:center;border-bottom:1px solid var(--line);padding:17px 0}
+.supply-item strong,.supply-item small{display:block}
+.supply-item small{color:var(--muted);font-size:.72rem;margin-bottom:5px}
+.supply-item strong{font-size:.9rem}
+.supply-item p{font-size:.77rem;margin:5px 0 0}
+.supply-stock{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+.supply-stock span{font-size:.8rem;color:var(--muted)}
+.supply-stock strong{font-size:.8rem}
+.supply-primary{border:0;border-radius:9px;padding:12px 17px;background:var(--navy);color:white;font-weight:800;margin-top:16px}
+.supply-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.supply-form .results-dialog-body{display:grid;gap:14px}
+.supplies-center .results-table{min-width:800px}
+@media(max-width:1080px){.supplies-center .dash-columns{grid-template-columns:1fr}}
+@media(max-width:640px){.supply-fields{grid-template-columns:1fr}.supply-item{grid-template-columns:minmax(0,1fr) 85px}.supplies-center .lab-overview-head{align-items:flex-start}}
