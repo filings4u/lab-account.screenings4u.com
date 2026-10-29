@@ -1,0 +1,98 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Complete Lab Account Intake | screenings4u Workforce</title><link rel="icon" type="image/svg+xml" href="/favicon.svg"><style>
+    :root{--blue:#173d78;--blue2:#24467f;--orange:#ff6b00;--ink:#172033;--muted:#65758b;--line:#dbe3ec;--soft:#f4f7fc;--white:#fff;--danger:#b42318;--success:#137a4d}
+    *{box-sizing:border-box}html,body{margin:0;padding:0;background:var(--soft);color:var(--ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    body{min-height:100vh}.wrap{max-width:1100px;margin:auto;padding:30px 18px 70px}
+    .brand{display:inline-flex;align-items:center;margin-bottom:24px;text-decoration:none}.intake-logo{display:block;width:220px;max-width:70vw;height:auto}
+    .hero{background:white;border:1px solid var(--line);border-radius:20px;padding:28px;box-shadow:0 14px 40px rgba(15,23,42,.07);margin-bottom:18px}
+    .eyebrow{font-size:11px;letter-spacing:.08em;font-weight:900;color:var(--orange);text-transform:uppercase}h1{color:var(--blue);margin:7px 0 8px;font-size:32px}
+    p{color:var(--muted);line-height:1.6}.notice{padding:14px 16px;background:#fff7ef;border-left:4px solid var(--orange);border-radius:10px;font-size:13px;color:#6b471f;margin-top:14px}
+    .card{background:white;border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 12px 32px rgba(15,23,42,.06)}
+    .section{margin-top:26px;padding-top:24px;border-top:1px solid var(--line)}.section:first-of-type{margin-top:0;padding-top:0;border-top:0}.section h2{font-size:19px;color:var(--blue);margin:0 0 5px}.section .sub{margin:0 0 17px;font-size:13px}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.full{grid-column:1/-1}.field{display:grid;gap:6px}
+    label{font-size:12px;font-weight:800;color:#42526a}input,select,textarea{width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:11px 12px;background:#fff;color:var(--ink);font:inherit}
+    textarea{min-height:110px;resize:vertical}.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.check{display:flex;align-items:flex-start;gap:9px;border:1px solid var(--line);border-radius:10px;padding:11px;background:#fbfcfe;font-size:13px}.check input{width:auto;margin-top:2px}
+    .same-row{display:flex;align-items:center;gap:8px;margin:0 0 14px;font-size:13px;font-weight:800;color:#42526a}.same-row input{width:auto}
+    .address-warning{font-size:12px;color:var(--danger);font-weight:800;margin-top:5px}.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:26px}.btn{border:0;border-radius:10px;padding:12px 18px;font-weight:900;cursor:pointer}
+    .primary{background:var(--orange);color:#fff}.secondary{background:#fff;color:var(--blue);border:1px solid var(--line)}.msg{font-size:13px;font-weight:700}.error{color:var(--danger)}.success{color:var(--success)}
+    .loading{text-align:center;padding:40px;color:var(--muted)}.hidden{display:none!important}
+    @media(max-width:760px){.grid,.checks{grid-template-columns:1fr}.full{grid-column:auto}h1{font-size:27px}.hero,.card{padding:20px}.intake-logo{width:185px}}
+  </style><script defer src="/config.js"></script><script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="/assets/js/lab-account-intake.js"></script></head><body><div class="wrap"><div class="brand" style="font-size:26px;font-weight:900;color:#102f55">screenings<span style="color:#ef6c00">4</span>u <small style="font-size:12px;margin-left:12px">Workforce · Lab Account</small></div><div class="hero"><div class="eyebrow">House Lab Account Setup</div><h1>Complete Your Lab Account Intake</h1><p>Enter your business information so screenings4u can establish your DOT and NON-DOT lab accounts.</p><div class="notice"><strong>Physical street addresses are required.</strong> P.O. Boxes are not accepted for business physical, billing, shipping, or mailing addresses.</div></div><form class="card" data-s4u-form-key="lab_account_intake"  id="form">
+<div aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden">
+<label for="websiteTrap">Website</label>
+<input autocomplete="off" id="websiteTrap" name="websiteTrap" tabindex="-1" type="text"/>
+</div>
+<div class="section">
+<h2>Business Information</h2>
+<p class="sub">Tell us how your testing account should be established.</p>
+<div class="grid">
+<div class="field full"><label>Legal Business Name *</label><input name="legal_business_name" required=""/></div>
+<div class="field"><label>DBA / Trade Name</label><input name="dba_name"/></div>
+<div class="field"><label>EIN</label><input name="ein"/></div>
+<div class="field"><label>Business Phone *</label><input name="business_phone" required=""/></div>
+<div class="field"><label>Website</label><input name="website"/></div>
+</div>
+</div>
+<div class="section" data-address-section="physical">
+<h2>Business Physical Address</h2>
+<p class="sub">Enter the physical street location of the business. P.O. Boxes are not allowed.</p>
+<div class="grid">
+<div class="field full"><label>Street Address *</label><input data-no-po-box="" name="physical_address_line1" required=""/><div class="address-warning">No P.O. Boxes.</div></div>
+<div class="field full"><label>Suite / Unit</label><input name="physical_address_line2"/></div>
+<div class="field"><label>City *</label><input name="physical_city" required=""/></div>
+<div class="field"><label>State *</label><input maxlength="2" name="physical_state" required=""/></div>
+<div class="field"><label>ZIP Code *</label><input name="physical_postal_code" required=""/></div>
+</div>
+</div>
+<div class="section" data-address-section="billing">
+<h2>Billing Address</h2>
+<p class="sub">Address used for invoices and billing correspondence. P.O. Boxes are not allowed.</p>
+<label class="same-row"><input data-copy-address="billing" name="billing_same_as_physical" type="checkbox"/> Same as business physical address</label>
+<div class="grid">
+<div class="field full"><label>Street Address *</label><input data-no-po-box="" name="billing_address_line1" required=""/><div class="address-warning">No P.O. Boxes.</div></div>
+<div class="field full"><label>Suite / Unit</label><input name="billing_address_line2"/></div>
+<div class="field"><label>City *</label><input name="billing_city" required=""/></div>
+<div class="field"><label>State *</label><input maxlength="2" name="billing_state" required=""/></div>
+<div class="field"><label>ZIP Code *</label><input name="billing_postal_code" required=""/></div>
+</div>
+</div>
+<div class="section" data-address-section="shipping">
+<h2>Shipping Address</h2>
+<p class="sub">Address used for testing materials, supplies, or other physical deliveries. P.O. Boxes are not allowed.</p>
+<label class="same-row"><input data-copy-address="shipping" name="shipping_same_as_physical" type="checkbox"/> Same as business physical address</label>
+<div class="grid">
+<div class="field full"><label>Street Address *</label><input data-no-po-box="" name="shipping_address_line1" required=""/><div class="address-warning">No P.O. Boxes.</div></div>
+<div class="field full"><label>Suite / Unit</label><input name="shipping_address_line2"/></div>
+<div class="field"><label>City *</label><input name="shipping_city" required=""/></div>
+<div class="field"><label>State *</label><input maxlength="2" name="shipping_state" required=""/></div>
+<div class="field"><label>ZIP Code *</label><input name="shipping_postal_code" required=""/></div>
+</div>
+</div>
+<div class="section" data-address-section="mailing">
+<h2>Mailing Address</h2>
+<p class="sub">Address used for mailed account correspondence. P.O. Boxes are not allowed.</p>
+<label class="same-row"><input data-copy-address="mailing" name="mailing_same_as_physical" type="checkbox"/> Same as business physical address</label>
+<div class="grid">
+<div class="field full"><label>Street Address *</label><input data-no-po-box="" name="mailing_address_line1" required=""/><div class="address-warning">No P.O. Boxes.</div></div>
+<div class="field full"><label>Suite / Unit</label><input name="mailing_address_line2"/></div>
+<div class="field"><label>City *</label><input name="mailing_city" required=""/></div>
+<div class="field"><label>State *</label><input maxlength="2" name="mailing_state" required=""/></div>
+<div class="field"><label>ZIP Code *</label><input name="mailing_postal_code" required=""/></div>
+</div>
+</div>
+<div class="section">
+<h2>Primary Contact</h2>
+<p class="sub">This person will be the primary contact for account setup.</p>
+<div class="grid">
+<div class="field"><label>First Name *</label><input name="primary_contact_first_name" required=""/></div>
+<div class="field"><label>Last Name *</label><input name="primary_contact_last_name" required=""/></div>
+<div class="field"><label>Email *</label><input name="primary_contact_email" required="" type="email"/></div>
+<div class="field"><label>Phone</label><input name="primary_contact_phone"/></div>
+<div class="field"><label>Billing Contact Name</label><input name="billing_contact_name"/></div>
+<div class="field"><label>Billing Contact Email</label><input name="billing_contact_email" type="email"/></div>
+</div>
+</div>
+<div class="actions">
+<button class="btn primary" id="submitBtn" type="submit">Submit Lab Account Intake</button>
+<span class="msg" id="msg"></span>
+</div>
+</form></div></body></html>
