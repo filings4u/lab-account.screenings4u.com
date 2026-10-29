@@ -52,3 +52,16 @@ button:focus-visible,a:focus-visible{outline:3px solid #f7ad7b;outline-offset:2p
 @media(max-width:1100px){.portal-clock,.pill{display:none}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:820px){.app{display:block}.side{display:none}.main{display:block}.menu{display:block}.top{padding:0 14px}.content{padding:14px}.grid{grid-template-columns:1fr}.mobile-nav{display:none;position:fixed;top:68px;left:0;right:0;bottom:0;background:#102f55;color:white;z-index:29;overflow:auto;padding:18px}.mobile-nav.open{display:block}.mobile-nav-head{padding:10px;font-size:.8rem;color:#a9c5dd;font-weight:800;text-transform:uppercase}.mobile-nav-links{display:grid;gap:5px}.mobile-nav-links button{display:block;width:100%;border:0;border-radius:9px;background:transparent;color:#dae7f3;text-align:left;padding:14px}.mobile-nav-links button.active{background:#fff;color:#102f55}.mobile-nav-links .ico{display:inline-block;width:26px}.top-right .font-sizer{display:none}}
 @media(max-width:480px){.top{gap:5px}.top-right{gap:5px}.switch{font-size:.65rem;padding:8px}.signout{font-size:.65rem;padding:8px}.top-eyebrow{font-size:.6rem}.crumb{font-size:.68rem}.hero{padding:20px}.hero h1{font-size:1.6rem}}
+
+/* Lab Add Features: adapted from C/TPA feature-card layout */
+.feature-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.feature-metrics .card small{display:block;color:#72859a;font-size:.7rem;font-weight:850;text-transform:uppercase;letter-spacing:.07em}
+.feature-section{display:grid;gap:18px}
+.feature-section>.icsup-cardhead{background:#fff;border:1px solid #dce5ef;border-radius:12px;padding:18px}
+.feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.feature-card{display:flex;flex-direction:column;gap:12px;background:#fff;border:1px solid #dce5ef;border-radius:13px;padding:20px}
+.feature-card h3{color:#102f55;font-size:1.05rem;margin:0}
+.feature-card p{color:#6d7f92;line-height:1.6;flex:1;margin:0}
+.feature-card strong{color:#102f55}.feature-card span{color:#657d95;font-size:.82rem}
+.feature-card .button{align-self:flex-start}
+@media(max-width:700px){.feature-metrics,.feature-grid{grid-template-columns:1fr}}
