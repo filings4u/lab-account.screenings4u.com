@@ -1,0 +1,11 @@
+(() => {'use strict';
+const cfg=window.S4U_ACCESS_CONFIG, form=document.querySelector('#loginForm'), button=document.querySelector('#submitButton'), msg=document.querySelector('#message');
+const set=(message,error=false)=>{msg.textContent=message;msg.className='notice '+(error?'error':'')};
+document.querySelector('#togglePassword').addEventListener('click',()=>{const field=document.querySelector('#password'),show=field.type==='password';field.type=show?'text':'password';document.querySelector('#togglePassword').textContent=show?'Hide':'Show'});
+if(!cfg?.supabaseUrl||!cfg?.supabasePublishableKey){set('Central sign-in is not configured yet. Contact your administrator.',true);return}
+const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{auth:{storageKey:cfg.authStorageKey,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+let captcha='',widget=null;
+const mount=()=>{if(!cfg.turnstileSiteKey){button.disabled=true;set('Security verification is not configured. Contact your administrator.',true);return}if(!window.turnstile){setTimeout(mount,100);return}widget=window.turnstile.render('#securityChallenge',{sitekey:cfg.turnstileSiteKey,action:'central_portal_login',theme:'auto',callback:value=>{captcha=value;button.disabled=false},'expired-callback':()=>{captcha='';button.disabled=true},'error-callback':()=>{captcha='';button.disabled=true;set('Security verification failed. Retry the challenge.',true);return true}})};
+mount();
+form.addEventListener('submit',async e=>{e.preventDefault();if(!captcha)return set('Complete security verification.',true);button.disabled=true;set('Signing in…');try{const {data,error}=await client.auth.signInWithPassword({email:form.email.value.trim(),password:form.password.value,options:captcha?{captchaToken:captcha}:{}});if(error||!data?.session)throw error||Error('Sign-in was unsuccessful.');location.replace(cfg.redirectAfterSignIn||'/selector.html')}catch(err){set(err.message||'Unable to sign in.',true);captcha='';try{window.turnstile.reset(widget)}catch{}button.disabled=!!cfg.turnstileSiteKey}});
+})();

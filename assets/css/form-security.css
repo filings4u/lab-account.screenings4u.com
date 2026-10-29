@@ -1,0 +1,31 @@
+
+.s4u-form-security{
+  margin:22px 0;
+  padding:18px;
+  border:1px solid #d9e3ef;
+  border-left:4px solid #24467f;
+  border-radius:12px;
+  background:#f4f7fc;
+  box-sizing:border-box;
+}
+.s4u-security-copy{display:grid;gap:5px;margin-bottom:14px}
+.s4u-security-copy strong{color:#24467f;font-size:15px;line-height:1.35}
+.s4u-security-copy span{color:#56657a;font-size:13px;line-height:1.55}
+.s4u-turnstile-host{min-height:65px;max-width:100%;overflow:hidden}
+.s4u-security-status{margin-top:9px;color:#56657a;font-size:13px;line-height:1.45}
+.s4u-security-status.is-success{color:#166534}
+.s4u-security-status.is-error{color:#b42318;font-weight:600}
+.s4u-honeypot{
+  position:absolute!important;
+  left:-10000px!important;
+  top:auto!important;
+  width:1px!important;
+  height:1px!important;
+  overflow:hidden!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
+@media (max-width:480px){
+  .s4u-form-security{padding:14px}
+  .s4u-turnstile-host{transform-origin:left top}
+}
