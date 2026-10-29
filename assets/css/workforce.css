@@ -4,7 +4,7 @@
 button{font:inherit;cursor:pointer}a{text-decoration:none;color:inherit}
 .app{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100vh}
 .side{position:fixed;inset:0 auto 0 0;width:250px;background:linear-gradient(180deg,var(--navy2),var(--navy));color:#dae7f3;display:flex;flex-direction:column;z-index:30}
-.brand{height:68px;display:flex;align-items:center;justify-content:center;padding:8px 18px;background:#fff;border-bottom:1px solid var(--line);color:var(--navy);font-size:25px;font-weight:850}.brand span{color:var(--orange)}
+.brand{height:68px;display:flex;align-items:center;justify-content:center;padding:8px 18px;background:#fff;border-bottom:1px solid var(--line);color:var(--navy);font-size:25px;font-weight:850}.brand img{display:block;width:100%;max-width:205px;max-height:56px;height:auto;object-fit:contain;object-position:center}
 .nav{overflow:auto;flex:1;padding:8px 10px 12px}.nav-title{padding:10px 12px 8px;color:#8fa9c3;font-size:.65rem;text-transform:uppercase;font-weight:900;letter-spacing:.12em}
 .nav a,.mobile-nav-links a{display:flex;gap:11px;align-items:center;padding:10px 12px;border-radius:9px;margin:3px 0;font-size:.85rem;font-weight:720}.nav a:hover{background:rgba(255,255,255,.07);color:#fff}.nav a.active,.mobile-nav-links a.active{background:#fff;color:var(--navy);box-shadow:inset 4px 0 0 var(--orange)}.nav .ico{width:20px;text-align:center}
 .side-foot{border-top:1px solid rgba(255,255,255,.1);padding:12px;display:grid;gap:4px}.side-foot small{font-size:.65rem;color:#9fb3c7}.side-foot strong{font-size:.76rem;color:#fff}
