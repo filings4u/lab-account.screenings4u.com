@@ -1,0 +1,8 @@
+(()=>{'use strict';const sb=window.S4UGetSupabaseClient();const form=document.querySelector('form'),out=document.getElementById('message');const button=form?.querySelector('[type=submit]');const show=(m,bad=false)=>{out.textContent=m;out.style.color=bad?'#ad2525':'#23653b'};const busy=v=>{if(button)button.disabled=v};const clean=()=>{const url=new URL(location.href);url.searchParams.delete('error');url.searchParams.delete('error_description');history.replaceState({},'',url.pathname+url.search)};const mode=document.body.dataset.authMode;const message=new URLSearchParams(location.search).get('error_description');if(message){show(message,true);clean()}
+sb.auth.getSession().then(({data})=>{if(data?.session&&mode!=='reset')location.replace('/selector.html')});
+form?.addEventListener('submit',async e=>{e.preventDefault();if(!form.reportValidity())return;busy(true);show('');const email=form.elements.email?.value.trim(),password=form.elements.password?.value;try{
+if(mode==='login'){const {error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;location.replace('/selector.html');return}
+if(mode==='forgot'){const redirectTo=location.origin+'/reset-password.html';const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});if(error)throw error;show('If this email has an account, a password reset link will be sent.');return}
+if(mode==='reset'){if(password!==form.elements.confirm?.value)throw Error('Passwords do not match.');const {error}=await sb.auth.updateUser({password});if(error)throw error;show('Password updated. You can now sign in.');setTimeout(()=>location.replace('/login.html'),1200)}
+}catch(err){show(err.message||'Unable to complete this request.',true)}finally{busy(false)}});
+})();
