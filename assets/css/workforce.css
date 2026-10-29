@@ -57,3 +57,19 @@ button{font:inherit;cursor:pointer}a{text-decoration:none;color:inherit}
 @media(max-width:1100px){.results-center .results-stages{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:720px){.results-center .lab-overview-head{align-items:flex-start;flex-direction:column}.results-center .results-controls{grid-template-columns:1fr}.results-center .results-stages{grid-template-columns:repeat(2,minmax(0,1fr))}.results-center .results-mro{padding:16px}}
 @media(max-width:420px){.results-center .results-stages{grid-template-columns:1fr}.results-center .results-stage{min-height:84px}}
+
+
+/* Consistent page layout for account documents and billing. */
+body[data-portal-page="documents"] .content,body[data-portal-page="billing"] .content{width:100%}
+body[data-portal-page="documents"] .panel-body,body[data-portal-page="billing"] .panel-body{padding:24px}
+body[data-portal-page="documents"] .results-center,body[data-portal-page="billing"] .billing-center{width:100%;min-width:0;gap:18px}
+body[data-portal-page="documents"] #documentsContent,body[data-portal-page="billing"] #billingContent{width:100%;min-width:0}
+body[data-portal-page="documents"] #documentsContent:not([hidden]),body[data-portal-page="billing"] #billingContent:not([hidden]){display:grid;gap:18px}
+body[data-portal-page="documents"] .dash-kpis,body[data-portal-page="billing"] .dash-kpis{grid-template-columns:repeat(3,minmax(0,1fr));width:100%;margin:0}
+body[data-portal-page="documents"] .results-controls,body[data-portal-page="billing"] .results-controls{margin:0}
+body[data-portal-page="documents"] .results-table,body[data-portal-page="billing"] .results-table{min-width:780px}
+body[data-portal-page="documents"] .results-table td,body[data-portal-page="billing"] .results-table td{vertical-align:middle}
+body[data-portal-page="documents"] .results-view,body[data-portal-page="billing"] .results-view{white-space:nowrap}
+body[data-portal-page="documents"] #documentsNotice,body[data-portal-page="billing"] #billingNotice{margin:0}
+@media(max-width:900px){body[data-portal-page="documents"] .dash-kpis,body[data-portal-page="billing"] .dash-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){body[data-portal-page="documents"] .dash-kpis,body[data-portal-page="billing"] .dash-kpis{grid-template-columns:1fr}body[data-portal-page="documents"] .panel-body,body[data-portal-page="billing"] .panel-body{padding:16px}}
