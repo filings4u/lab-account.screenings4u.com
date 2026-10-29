@@ -1,0 +1,26 @@
+(()=>{'use strict';
+const db=window.supabase?.createClient('https://elpbnytpciqnbexiaebp.supabase.co','sb_publishable_xVI6Mjkk1bNVMGHZCPuK6w_8FSHKdkC',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const $=id=>document.getElementById(id),views=['loading','auth','tickets','newForm','detail'];let user=null,selected=null;
+const show=id=>views.forEach(v=>$(v).classList.toggle('lab-hidden',v!==id));
+const notify=(message,bad=false)=>{const el=$('notice');el.textContent=message||'';el.className=bad?'lab-error':'lab-success';};
+const fmt=v=>v?new Date(v).toLocaleString():'';
+const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=String(text);return n};
+const busy=(form,on)=>{const b=form.querySelector('button[type="submit"]');if(b)b.disabled=on};
+async function load(){if(!user)return;show('tickets');notify('');$('ticketList').replaceChildren(el('p','lab-muted','Loading support requests…'));
+const {data,error}=await db.from('support_tickets').select('id,ticket_number,subject,status,priority,created_at,last_message_at').eq('customer_user_id',user.id).order('last_message_at',{ascending:false}).limit(100);
+if(error){$('ticketList').replaceChildren();notify(error.message,true);return}
+const list=$('ticketList');list.replaceChildren();if(!data?.length){const p=el('div','lab-card');p.append(el('h2',null,'No tickets yet'),el('p','lab-muted','Create a support ticket to contact the team.'));list.append(p);return}
+for(const t of data){const b=el('button','lab-ticket');b.type='button';const top=el('div','lab-row');top.append(el('strong',null,t.subject),el('span','lab-pill',t.status));b.append(top,el('p','lab-muted',t.ticket_number+' · '+fmt(t.created_at)+' · '+t.priority));b.addEventListener('click',()=>open(t));list.append(b)}}
+async function open(t){selected=t;show('detail');notify('');$('ticketTitle').textContent=t.subject;$('ticketStatus').textContent=t.status;$('ticketMeta').textContent=t.ticket_number+' · Opened '+fmt(t.created_at);$('messages').replaceChildren(el('p','lab-muted','Loading messages…'));
+const {data,error}=await db.from('support_ticket_messages').select('sender_type,body,created_at').eq('ticket_id',t.id).eq('is_internal_note',false).order('created_at');
+if(error){notify(error.message,true);return}const m=$('messages');m.replaceChildren();if(!data?.length)m.append(el('p','lab-muted','No messages yet.'));
+for(const x of data||[]){const box=el('div','lab-message');box.append(el('strong',null,x.sender_type==='customer'?'You':'Support'),el('span','lab-muted',' · '+fmt(x.created_at)),el('div',null,x.body));m.append(box)}
+$('replyForm').classList.toggle('lab-hidden',/closed/i.test(t.status));}
+$('newTicket').addEventListener('click',()=>{notify('');show('newForm')});document.querySelectorAll('[data-back]').forEach(b=>b.addEventListener('click',load));
+$('signIn').addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget;busy(f,true);notify('');const v=new FormData(f);try{const {data,error}=await db.auth.signInWithPassword({email:String(v.get('email')),password:String(v.get('password'))});if(error)throw error;user=data.user;$('newTicket').classList.remove('lab-hidden');await load()}catch(err){notify(err.message||'Sign-in failed.',true)}finally{busy(f,false)}});
+$('createTicket').addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget;busy(f,true);notify('');try{const v=new FormData(f),subject=String(v.get('subject')).trim(),body=String(v.get('message')).trim();if(!subject||!body)throw Error('Please enter a subject and message.');const id='LAB-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomUUID().slice(0,6).toUpperCase();
+const {data,error}=await db.from('support_tickets').insert({ticket_number:id,subject,category:String(v.get('category')),priority:String(v.get('priority')),status:'open',source:'lab_account',customer_user_id:user.id,created_by:user.id,requester_email:user.email}).select('id').single();if(error)throw error;
+const r=await db.from('support_ticket_messages').insert({ticket_id:data.id,sender_user_id:user.id,sender_type:'customer',body,is_internal_note:false});if(r.error)throw Error('Ticket '+id+' was created, but the message could not be saved: '+r.error.message);f.reset();await load();notify('Support ticket '+id+' submitted.')}catch(err){notify(err.message||'Unable to create ticket.',true)}finally{busy(f,false)}});
+$('replyForm').addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget;busy(f,true);notify('');try{const body=String(new FormData(f).get('body')).trim();if(!body)throw Error('Please write a reply.');const {error}=await db.from('support_ticket_messages').insert({ticket_id:selected.id,sender_user_id:user.id,sender_type:'customer',body,is_internal_note:false});if(error)throw error;f.reset();await open(selected);notify('Reply sent.')}catch(err){notify(err.message||'Reply failed.',true)}finally{busy(f,false)}});
+(async()=>{if(!db){show('auth');notify('Unable to load the secure connection. Refresh the page.',true);return}const {data,error}=await db.auth.getUser();if(error||!data?.user){show('auth');return}user=data.user;$('newTicket').classList.remove('lab-hidden');await load()})();
+})();
