@@ -64,7 +64,7 @@ form.addEventListener("submit",async e=>{
   try{
     let security={};
     try{security=window.Screenings4uFormSecurity?.payload(form)||{};}catch(err){console.warn("Form security is still initializing.",err);}
-    const response=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({formKey:"lab_account_intake",intakeToken,turnstileToken:security.turnstileToken||"",formStartedAt:security.formStartedAt||formStartedAt,websiteTrap:security.websiteTrap||form.elements.websiteTrap?.value||"",sourceUrl:location.href,payload:collectIntake()})});
+    const response=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({formKey:"lab_account_intake_standalone",turnstileToken:security.turnstileToken||"",formStartedAt:security.formStartedAt||formStartedAt,websiteTrap:security.websiteTrap||form.elements.websiteTrap?.value||"",sourceUrl:location.href,payload:collectIntake()})});
     const result=await response.json().catch(()=>({}));
     if(!response.ok||result.error){try{window.Screenings4uFormSecurity?.reset(form);}catch{}throw new Error(result.error||"Unable to submit the lab account intake.");}
     msg.textContent=`Your intake has been received. Submission ${result.submissionNumber||""}`.trim();
