@@ -8,3 +8,10 @@
 .grid .card:hover{box-shadow:0 12px 28px #122c4f14}
 .content h1{letter-spacing:-.03em}
 @media(max-width:650px){.side{position:static;height:auto;overflow:visible}.nav{scrollbar-width:thin}.top{gap:12px;flex-wrap:wrap}}
+
+/* Central portal navigation and compact responsive header */
+.top-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.home-link{border:0;background:none;color:#152d4d;font-weight:800;text-align:left;padding:5px 0;font-size:16px}
+.home-link:hover{text-decoration:underline}
+.home-link:focus-visible{outline:3px solid #f7ad7b;outline-offset:2px}
+@media(max-width:650px){.top{align-items:flex-start}.top-actions{width:100%}.top-actions .button{flex:1;text-align:center}}
