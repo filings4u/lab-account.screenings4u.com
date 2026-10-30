@@ -193,3 +193,22 @@ body[data-portal-page="support"] .results-table{min-width:900px}
 
 /* Date of birth is a date, not a free-form numeric field. */
 .dob-field{display:flex;flex-direction:column;gap:9px;min-width:0}.dob-label{font-size:.75rem;font-weight:800;color:#183653}.dob-controls{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,.8fr) minmax(0,1fr);gap:8px}.dob-controls select,.dob-controls input{min-width:0;width:100%;height:44px;border:1px solid #cbd8e5;background:#fff;border-radius:8px;padding:8px 10px;color:#153557;font:inherit}.dob-controls :focus-visible{outline:2px solid #245c98;outline-offset:1px}@media(max-width:480px){.dob-controls{gap:5px}.dob-controls select,.dob-controls input{padding:8px 5px}}
+
+
+/* Customer testing order: clean record document rather than dashboard cards */
+.testing-order-document .record-toolbar{padding:4px 0 10px;border-bottom:1px solid #dce5ef}
+.testing-order-document .record-overview{margin-top:8px;background:#fff;border:1px solid #dce5ef;box-shadow:0 5px 18px rgba(16,47,85,.035);color:#102f55;border-left:5px solid #ef6c00}
+.testing-order-document .record-overview h2{color:#102f55;font-size:1.6rem}
+.testing-order-document .record-overview p{color:#5e7490}
+.testing-order-document .record-eyebrow{color:#b95105}
+.testing-order-document .record-status{background:#eff5fc;border:1px solid #cdddec;color:#183653}
+.testing-order-document .record-summary{gap:0;background:#fff;border:1px solid #dce5ef;border-radius:12px;overflow:hidden}
+.testing-order-document .record-highlight{border:0;border-right:1px solid #dce5ef;border-radius:0;background:#fff;padding:17px 22px;gap:7px}
+.testing-order-document .record-highlight:last-child{border-right:0}
+.testing-order-document .record-highlight strong{font-size:1rem}
+.testing-order-document .record-sections{gap:16px}
+.testing-order-document .record-section{box-shadow:0 4px 14px rgba(16,47,85,.025)}
+.testing-order-document #editOrderLink{display:inline-flex;text-decoration:none;justify-content:center;align-items:center;padding:11px 22px;border-radius:8px}
+.testing-order-document #editOrderLink[hidden]{display:none!important}
+.record-edit-actions{display:flex;align-items:center;justify-content:flex-end;gap:22px;margin-top:24px}
+@media(max-width:700px){.testing-order-document .record-summary{grid-template-columns:1fr}.testing-order-document .record-highlight{border-right:0;border-bottom:1px solid #dce5ef}}
