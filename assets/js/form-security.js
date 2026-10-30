@@ -128,9 +128,10 @@
 
   function payload(form) {
     const state = states.get(form);
+    if (!state) return {turnstileToken:"",formStartedAt:0,websiteTrap:""};
     const token =
       state?.token ||
-      (state?.widgetId !== null &&
+      (state.widgetId !== null &&
        window.turnstile &&
        typeof window.turnstile.getResponse === "function"
         ? window.turnstile.getResponse(state.widgetId)
