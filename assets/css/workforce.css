@@ -227,3 +227,18 @@ body[data-portal-page="support"] .results-table{min-width:900px}
 @media(max-width:700px){.order-sheet-header{flex-direction:column;align-items:flex-start}.order-sheet-status{justify-items:start;text-align:left}.order-sheet-summary,.order-sheet-sections{grid-template-columns:1fr}.order-sheet-sections .record-section:nth-child(even){padding-left:0}.order-sheet-header,.order-sheet-summary,.order-sheet-sections{padding-left:18px;padding-right:18px}}
 
 .order-editor{max-width:1200px;margin:auto}.order-editor-header,.order-editor-panel{background:#fff;border:1px solid #dce5ef;border-radius:12px;padding:26px;margin-bottom:16px}.order-editor-header{border-left:5px solid #ef6c00}.order-editor-header h1{margin:8px 0;font-size:1.7rem;color:#102f55}.order-editor-panel h2{font-size:1.1rem;padding-bottom:14px;border-bottom:1px solid #e5edf4}.order-editor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.order-editor-grid label{display:grid;gap:8px;font-weight:750;color:#385774}.order-editor-grid input,.order-editor-grid select,.order-editor-grid textarea{width:100%;min-width:0;padding:11px;border:1px solid #cbd8e5;border-radius:8px;background:#fff;color:#163657;font:inherit}.order-editor-grid input[readonly]{background:#f1f5f9}.order-editor-wide{grid-column:1/-1}.order-editor-actions{display:flex;align-items:center;justify-content:flex-end;gap:22px;padding:16px}.order-editor-actions a{color:#24467f;font-weight:800}@media(max-width:650px){.order-editor-grid{grid-template-columns:1fr}.order-editor-panel{padding:17px}}
+
+/* Testing order edit toolbar and form alignment */
+.order-editor{width:100%;max-width:1200px;margin:0 auto}
+.order-editor>.record-toolbar{display:flex;align-items:center;justify-content:space-between;min-height:52px;margin:0 0 18px;padding:6px 4px;gap:20px;border-bottom:1px solid #d7e1ec}
+.order-editor>.record-toolbar a{display:inline-flex;align-items:center;min-height:36px;color:#24467f;font-size:.85rem;font-weight:750}
+.order-editor>.record-toolbar strong{display:inline-block;font-size:.7rem;letter-spacing:.08em;color:#71859d;white-space:nowrap}
+.order-editor-header{margin:0 0 18px;padding:28px 30px;border-left:5px solid #ef6c00}
+.order-editor-header h1{margin:0 0 8px;font-size:1.65rem;line-height:1.25}
+.order-editor-header p{margin:0;color:#687e96;line-height:1.5}
+.order-editor-panel{padding:25px 28px;margin:0 0 18px}
+.order-editor-panel h2{margin:0 0 20px;line-height:1.35}
+.order-editor-grid{gap:20px 22px}
+.order-editor-grid label{min-width:0;line-height:1.4}
+.order-editor-grid input,.order-editor-grid select,.order-editor-grid textarea{min-height:44px;box-sizing:border-box}
+@media(max-width:650px){.order-editor>.record-toolbar{margin-bottom:14px}.order-editor-header{padding:22px 18px}.order-editor-panel{padding:20px 16px}.order-editor-grid{gap:15px}}
