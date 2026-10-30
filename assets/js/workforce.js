@@ -214,7 +214,7 @@ const newTestingOrderMarkup=()=>'<div class="results-center"><div class="lab-ove
 let newOrderCatalog=[];
 async function newOrderCall(action,more={}){
  const {data:{session}}=await window.labAccountClient.auth.getSession();if(!session)throw Error('Please sign in again.');
- const r=await fetch(cfg.supabaseUrl+'/functions/v1/lab-account-create-testing-order',{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.supabasePublishableKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action,...more})});
+ const r=await fetch(cfg.supabaseUrl+'/functions/v1/shared-testing-order-actions',{method:'POST',headers:{'Content-Type':'application/json','x-order-portal':'lab-account',apikey:cfg.supabasePublishableKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action,...more})});
  const d=await r.json().catch(()=>({}));if(!r.ok||d.error)throw Error(d.error||'Testing order unavailable');return d;
 }
 async function refreshOrderPasses(){
