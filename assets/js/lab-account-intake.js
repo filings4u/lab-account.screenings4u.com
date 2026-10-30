@@ -29,11 +29,17 @@ form.querySelectorAll("[name^='physical_']").forEach(el=>{
   el.addEventListener("input",()=>document.querySelectorAll("[data-copy-address]:checked").forEach(box=>copyPhysicalAddress(box.dataset.copyAddress,true)));
 });
 
+const websiteField=form.elements.website;
+if(websiteField){
+  const normalizeWebsite=()=>{const value=websiteField.value.trim();if(!value||value==="https://")return;websiteField.value=/^https?:\/\//i.test(value)?value:"https://"+value.replace(/^\/+/, "");};
+  websiteField.addEventListener("blur",normalizeWebsite);
+  websiteField.addEventListener("focus",()=>{if(!websiteField.value.trim())websiteField.value="https://";});
+}
 function collectIntake(){
   const fd=new FormData(form),data={};
   for(const [k,v] of fd.entries()){
     if(k==="websiteTrap") continue;
-    data[k]=v;
+    data[k]=k==="website" && String(v).trim()==="https://" ? "" : v;
   }
   for(const n of ["billing_same_as_physical","shipping_same_as_physical","mailing_same_as_physical"]){
     data[n]=!!form.elements[n]?.checked;
@@ -57,13 +63,15 @@ form.addEventListener("submit",async e=>{
 
   e.preventDefault();
   if(!authenticatedUser){msg.textContent="Please sign in to continue.";return;}
+  if(websiteField){const v=websiteField.value.trim();if(v&&v!=="https://"&&!/^https?:\/\//i.test(v))websiteField.value="https://"+v;}
   if(!validateNoPoBoxes()||!form.reportValidity()) return;
   submitBtn.disabled=true;
   msg.textContent="Submitting…";
   msg.className="msg";
   try{
     let security={};
-    try{security=window.Screenings4uFormSecurity?.payload(form)||{};}catch(err){console.warn("Form security is still initializing.",err);}
+    try{security=window.Screenings4uFormSecurity?.payload(form)||{};}catch(err){console.error("Security verification unavailable.",err);}
+    if(!security.turnstileToken){msg.textContent="Complete the security verification before submitting.";msg.className="msg error";document.querySelector(".s4u-form-security")?.scrollIntoView({behavior:"smooth",block:"center"});return;}
     const response=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({formKey:"lab_account_intake_standalone",turnstileToken:security.turnstileToken||"",formStartedAt:security.formStartedAt||formStartedAt,websiteTrap:security.websiteTrap||form.elements.websiteTrap?.value||"",sourceUrl:location.href,payload:collectIntake()})});
     const result=await response.json().catch(()=>({}));
     if(!response.ok||result.error){try{window.Screenings4uFormSecurity?.reset(form);}catch{}throw new Error(result.error||"Unable to submit the lab account intake.");}
