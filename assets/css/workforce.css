@@ -161,3 +161,27 @@ body[data-portal-page="support"] .dash-card{min-width:0}
 .support-message{padding:14px 0;border-bottom:1px solid var(--line)}
 .support-message strong,.support-message small{display:block}.support-message small{color:var(--muted);margin-top:4px}.support-message p{white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:960px){body[data-portal-page="support"] .dash-columns{grid-template-columns:1fr}}
+
+
+/* Shared Workforce Support layout */
+body[data-portal-page="support"] .support-shell{display:grid;gap:20px;min-width:0}
+body[data-portal-page="support"] .support-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
+body[data-portal-page="support"] .support-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,1fr);gap:18px;align-items:start}
+body[data-portal-page="support"] .support-aside{display:grid;gap:18px;min-width:0}
+body[data-portal-page="support"] .support-card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+body[data-portal-page="support"] .support-tag{background:#edf4ff;border-radius:20px;padding:8px 12px;font-size:.75rem;white-space:nowrap}
+body[data-portal-page="support"] .support-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+body[data-portal-page="support"] .support-form-grid .full{grid-column:1/-1}
+body[data-portal-page="support"] .support-diagnostics{display:grid;gap:10px;border:1px solid var(--line);background:#f8fbff;border-radius:12px;padding:15px}
+body[data-portal-page="support"] .support-diagnostics small{color:var(--muted)}
+body[data-portal-page="support"] .support-help-list{display:grid}
+body[data-portal-page="support"] .support-help-list a{padding:14px 0;border-bottom:1px solid var(--line);text-decoration:none;display:grid;gap:4px;color:var(--ink)}
+body[data-portal-page="support"] .support-help-list span{font-size:.8rem;color:var(--muted)}
+body[data-portal-page="support"] .support-steps{padding-left:0;list-style:none;display:grid;gap:15px}
+body[data-portal-page="support"] .support-steps li{display:grid;gap:5px}
+body[data-portal-page="support"] .support-steps span{font-size:.8rem;color:var(--muted)}
+body[data-portal-page="support"] .support-filter{display:flex;gap:10px}
+body[data-portal-page="support"] .support-filter input,body[data-portal-page="support"] .support-filter select{border:1px solid var(--line);padding:10px;border-radius:8px;min-width:0}
+body[data-portal-page="support"] .results-table{min-width:900px}
+@media(max-width:1020px){body[data-portal-page="support"] .support-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}body[data-portal-page="support"] .support-grid{grid-template-columns:1fr}}
+@media(max-width:620px){body[data-portal-page="support"] .support-metrics,body[data-portal-page="support"] .support-form-grid{grid-template-columns:1fr}body[data-portal-page="support"] .support-filter{flex-direction:column}body[data-portal-page="support"] .support-card-header{flex-direction:column}}
