@@ -255,7 +255,7 @@ async function initTestingOrderEdit(){
 
 const detailMarkup=()=>{
  const spec=detailSpec[current];
- return '<div class="workforce-record"><div class="record-toolbar"><a class="record-back" href="'+spec.back+'">← '+spec.backLabel+'</a>'+(spec.type==='testing'?'<a class="supply-primary" id="editOrderLink" hidden>Edit order</a>':'<span class="record-view-tag">VIEW DETAILS</span>')+'</div><div class="record-overview"><div><span class="record-eyebrow">WORKFORCE · SCREENINGS4U</span><h2 id="recordHeading">'+spec.title+'</h2><p>'+spec.intro+'</p></div><div id="recordStatus" class="record-status">Retrieving status…</div></div><p id="recordMessage" class="results-message" role="status">Loading your record…</p><div id="recordContent" hidden><div class="record-summary" id="recordSummary"></div><div class="record-sections" id="recordSections"></div></div></div>'
+ return '<div class="workforce-record '+(spec.type==='testing'?'testing-order-document':'')+'"><div class="record-toolbar"><a class="record-back" href="'+spec.back+'">← '+spec.backLabel+'</a>'+(spec.type==='testing'?'<a class="supply-primary" id="editOrderLink" hidden>Edit order</a>':'<span class="record-view-tag">VIEW DETAILS</span>')+'</div><div class="record-overview"><div><span class="record-eyebrow">WORKFORCE · SCREENINGS4U</span><h2 id="recordHeading">'+spec.title+'</h2><p>'+spec.intro+'</p></div><div id="recordStatus" class="record-status">Retrieving status…</div></div><p id="recordMessage" class="results-message" role="status">Loading your record…</p><div id="recordContent" hidden><div class="record-summary" id="recordSummary"></div><div class="record-sections" id="recordSections"></div></div></div>'
 };
 async function loadRecordDetail(){
  const spec=detailSpec[current],id=new URLSearchParams(location.search).get('id'),note=document.getElementById('recordMessage');
@@ -268,7 +268,7 @@ async function loadRecordDetail(){
   if(spec.type==='testing'){
    const d=await testingOrdersCall(),x=(d.orders||[]).find(o=>String(o.id)===id);if(!x)throw Error('Testing order not found for this account.');
    ref=x.case_number||'Testing order';status=testingStatus(x.status);const edit=document.getElementById('editOrderLink');if(edit&&x.status==='awaiting_schedule'){edit.href='/testing-order-edit.html?id='+encodeURIComponent(id);edit.hidden=false}
-   summary=[['Order reference',ref],['Test requested',x.panel_name||x.test_type],['Current stage',status]];
+   summary=[['Testing service',x.panel_name||x.test_type],['Order submitted',resultDate(x.created_at)],['Status',status]];
    sections.push(section('Donor & test','Who is being tested and what was ordered',[['Donor',x.donor_name],['Test',x.test_type],['Panel',x.panel_name],['Reason for testing',x.test_reason],['Priority',x.priority]]));
    sections.push(section('Collection timeline','Scheduling and specimen milestones',[['Order created',resultDate(x.created_at)],['Scheduled appointment',resultDate(x.scheduled_at)],['Collection deadline',resultDate(x.collection_deadline)],['Collected',resultDate(x.collected_at)],['Completed',resultDate(x.completed_at)]]));
    sections.push(section('Donor pass','Details are shown when a pass has been issued',[['Pass number',x.donor_pass_number]]));
