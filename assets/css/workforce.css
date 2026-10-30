@@ -121,3 +121,27 @@ body[data-portal-page="order-history"] .results-table td{vertical-align:middle}
 .history-item span{overflow-wrap:anywhere}
 @media(max-width:900px){body[data-portal-page="order-history"] .dash-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){body[data-portal-page="order-history"] .dash-kpis{grid-template-columns:1fr}}
+
+
+/* Create Testing Order: structured form layout matching the portal */
+body[data-portal-page="create-testing-order"] .panel-body{padding:26px}
+body[data-portal-page="create-testing-order"] .results-center{gap:20px}
+body[data-portal-page="create-testing-order"] .new-order-form{display:grid;gap:20px;min-width:0}
+body[data-portal-page="create-testing-order"] .new-order-form[hidden]{display:none!important}
+body[data-portal-page="create-testing-order"] .new-order-form .dash-card{display:grid;gap:18px;padding:24px}
+body[data-portal-page="create-testing-order"] .new-order-form .dash-card h3{margin:0;font-size:1.08rem}
+body[data-portal-page="create-testing-order"] .new-order-form label{display:flex;flex-direction:column;align-items:stretch;gap:8px;font-size:.82rem;font-weight:750;color:var(--ink);min-width:0}
+body[data-portal-page="create-testing-order"] .new-order-form input,
+body[data-portal-page="create-testing-order"] .new-order-form select,
+body[data-portal-page="create-testing-order"] .new-order-form textarea{width:100%;min-width:0;min-height:44px;padding:11px 12px;border:1px solid #cbd8e5;border-radius:9px;background:#fff;color:var(--ink);font:inherit;box-sizing:border-box}
+body[data-portal-page="create-testing-order"] .new-order-form textarea{min-height:100px;resize:vertical}
+body[data-portal-page="create-testing-order"] .new-order-form #newOrderService{max-width:680px}
+body[data-portal-page="create-testing-order"] .new-order-form .new-order-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+body[data-portal-page="create-testing-order"] .new-order-form #newOrderAuthorityField[hidden]{display:none}
+body[data-portal-page="create-testing-order"] .new-order-form .dash-note{margin:0}
+body[data-portal-page="create-testing-order"] .new-order-form>.supply-primary{justify-self:start;margin:0;padding:13px 22px}
+body[data-portal-page="create-testing-order"] .new-order-pass{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+body[data-portal-page="create-testing-order"] .new-order-pass strong,
+body[data-portal-page="create-testing-order"] .new-order-pass small{display:block;margin-bottom:5px}
+@media(max-width:1050px){body[data-portal-page="create-testing-order"] .new-order-form .new-order-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){body[data-portal-page="create-testing-order"] .panel-body{padding:16px}body[data-portal-page="create-testing-order"] .new-order-form .new-order-grid{grid-template-columns:1fr}body[data-portal-page="create-testing-order"] .new-order-pass{flex-direction:column;align-items:stretch}}
