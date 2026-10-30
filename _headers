@@ -1,0 +1,15 @@
+# Public static assets only. Never cache authenticated API responses or HTML.
+/assets/css/*
+  Cache-Control: public, max-age=300, stale-while-revalidate=3600
+
+/assets/js/*
+  Cache-Control: public, max-age=300, stale-while-revalidate=3600
+
+/images/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/config.js
+  Cache-Control: public, max-age=300
+
+/*.html
+  Cache-Control: no-store
