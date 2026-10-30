@@ -145,3 +145,19 @@ body[data-portal-page="create-testing-order"] .new-order-pass strong,
 body[data-portal-page="create-testing-order"] .new-order-pass small{display:block;margin-bottom:5px}
 @media(max-width:1050px){body[data-portal-page="create-testing-order"] .new-order-form .new-order-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){body[data-portal-page="create-testing-order"] .panel-body{padding:16px}body[data-portal-page="create-testing-order"] .new-order-form .new-order-grid{grid-template-columns:1fr}body[data-portal-page="create-testing-order"] .new-order-pass{flex-direction:column;align-items:stretch}}
+
+
+/* Lab Account Support Center */
+body[data-portal-page="support"] .results-center{display:grid;gap:20px;min-width:0}
+body[data-portal-page="support"] .dash-columns{grid-template-columns:repeat(2,minmax(0,1fr));margin:0;align-items:start}
+body[data-portal-page="support"] .dash-card{min-width:0}
+.support-form{display:grid;gap:15px}
+.support-form label{display:grid;gap:8px;font-size:.84rem;font-weight:750}
+.support-form input,.support-form select,.support-form textarea{width:100%;min-width:0;border:1px solid #cbd8e5;border-radius:9px;padding:11px 12px;background:#fff;color:var(--ink);font:inherit}
+.support-form textarea{resize:vertical;min-height:108px}
+.support-form .supply-primary{justify-self:start;margin:0}
+.support-ticket{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;background:#fff;border:0;border-bottom:1px solid var(--line);padding:16px 2px;color:var(--ink);cursor:pointer}
+.support-ticket strong,.support-ticket small{display:block}.support-ticket small{margin-top:6px;color:var(--muted)}
+.support-message{padding:14px 0;border-bottom:1px solid var(--line)}
+.support-message strong,.support-message small{display:block}.support-message small{color:var(--muted);margin-top:4px}.support-message p{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:960px){body[data-portal-page="support"] .dash-columns{grid-template-columns:1fr}}
