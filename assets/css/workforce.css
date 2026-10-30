@@ -98,3 +98,13 @@ body[data-portal-page="documents"] #documentsNotice,body[data-portal-page="billi
 .supplies-center .results-table{min-width:800px}
 @media(max-width:1080px){.supplies-center .dash-columns{grid-template-columns:1fr}}
 @media(max-width:640px){.supply-fields{grid-template-columns:1fr}.supply-item{grid-template-columns:minmax(0,1fr) 85px}.supplies-center .lab-overview-head{align-items:flex-start}}
+
+
+/* Testing Orders layout consistent with existing Workforce pages. */
+body[data-portal-page="testing-order"] #testingOrdersContent:not([hidden]){display:grid;gap:18px;min-width:0}
+body[data-portal-page="testing-order"] .dash-kpis{grid-template-columns:repeat(3,minmax(0,1fr));margin:0}
+body[data-portal-page="testing-order"] .results-controls{margin:0}
+body[data-portal-page="testing-order"] .results-table{min-width:900px}
+body[data-portal-page="testing-order"] .results-table td{vertical-align:middle}
+@media(max-width:900px){body[data-portal-page="testing-order"] .dash-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){body[data-portal-page="testing-order"] .dash-kpis{grid-template-columns:1fr}}
