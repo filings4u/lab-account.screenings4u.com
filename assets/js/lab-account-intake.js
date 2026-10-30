@@ -77,7 +77,12 @@ form.addEventListener("submit",async e=>{
     if(!response.ok||result.error){try{window.Screenings4uFormSecurity?.reset(form);}catch{}throw new Error(result.error||"Unable to submit the lab account intake.");}
     msg.textContent=`Your intake has been received. Submission ${result.submissionNumber||""}`.trim();
     msg.className="msg success";
-    const link=document.createElement("a");link.href="/dashboard.html";link.className="btn secondary";link.textContent="Continue to dashboard";submitBtn.insertAdjacentElement("afterend",link);
-    if(result.portalUrl){document.getElementById("portalLink")?.remove();const link=document.createElement("a");link.id="portalLink";link.className="btn secondary";link.href=result.portalUrl;link.textContent="Open Customer Portal";link.style.textDecoration="none";submitBtn.parentElement.appendChild(link);}
+    submitBtn.hidden=true;
+    const link=document.createElement("a");
+    link.href="https://lab-accounts.screenings4u.com/dashboard.html";
+    link.className="btn secondary";
+    link.style.textDecoration="none";
+    link.textContent="Continue to dashboard";
+    submitBtn.insertAdjacentElement("afterend",link);
   }catch(e){msg.textContent=e?.message||"Unable to submit the lab account intake.";msg.className="msg error";}finally{submitBtn.disabled=false;}
 });
