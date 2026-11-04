@@ -21,6 +21,26 @@ Deno.serve(async req=>{
  }
  if(action==="create"&&grant.plan==="lab-account-workflow-test-1")return send({error:"This $1 workflow test does not include live testing orders."},403);
  if(action==="create"){
+   const email=(user.email||"").trim().toLowerCase();
+   const [own,byEmail]=await Promise.all([
+     db.from("lab_account_intakes").select("id,order_id,customer_email").eq("customer_user_id",user.id).eq("account_status","active").eq("status","completed").limit(20),
+     db.from("lab_account_intakes").select("id,order_id,customer_email").ilike("customer_email",email).eq("account_status","active").eq("status","completed").limit(20)
+   ]);
+   if(own.error||byEmail.error)throw own.error||byEmail.error;
+   const candidates=[...new Map([...(own.data||[]),...(byEmail.data||[])].map(x=>[x.id,x])).values()];
+   if(!candidates.length)return send({error:"Your House Lab Account setup has not been activated. Complete onboarding and contact Screenings4U before requesting live tests."},403);
+   const orders=await db.from("orders").select("id,payment_status").in("id",candidates.map(x=>x.order_id));
+   if(orders.error)throw orders.error;
+   if(!(orders.data||[]).some(o=>o.payment_status==="paid"))return send({error:"A paid and active House Lab Account is required."},403);
+   const orgs=await db.from("organizations").select("id").ilike("primary_email",email).neq("status","archived").limit(2);
+   if(orgs.error)throw orgs.error;
+   if(orgs.data?.length!==1)return send({error:"The C/TPA organization needs verification before live testing."},403);
+   const ctpa=await db.from("ctpas").select("id,status").eq("organization_id",orgs.data[0].id).maybeSingle();
+   if(ctpa.error)throw ctpa.error;
+   if(ctpa.data?.status!=="active")return send({error:"C/TPA operational access has not been activated."},403);
+   const assigned=await db.from("ctpa_lab_accounts").select("id",{head:true,count:"exact"}).eq("ctpa_id",ctpa.data.id).eq("status","active");
+   if(assigned.error)throw assigned.error;
+   if(!assigned.count)return send({error:"No active laboratory account numbers are assigned to this C/TPA."},403);
  const id=str(body.service_id),first=str(body.first_name),last=str(body.last_name),email=str(body.donor_email),state=str(body.state_of_residence).toUpperCase(),reason=str(body.reason_for_test).toUpperCase();
  if(!/^[0-9a-f-]{36}$/i.test(id)||!first||!last||first.length>100||last.length>100||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!/[A-Z]{2}/.test(state)||state.length!==2||!["PE","RN","PA","RS","RT","FU","NI"].includes(reason))return send({error:"Complete the donor and test information"},400);
  const service=await db.from("services").select("id,name,metadata").eq("id",id).eq("active",true).maybeSingle();if(service.error)throw service.error;
