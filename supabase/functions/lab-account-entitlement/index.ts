@@ -28,12 +28,12 @@ Deno.serve(async(req:Request)=>{
  const services=await db.from("services").select("id,sku,slug").in("id",ids);
  if(services.error)throw services.error;
  const sku=new Map((services.data||[]).map(x=>[x.id,String(x.sku||x.slug||"").toLowerCase().replaceAll("_","-")]));
- const tiers=["lab-account","lab-account-random-consortium","lab-account-random-consortium-docs"];
+ const tiers=["lab-account-workflow-test-1","lab-account","lab-account-random-consortium","lab-account-random-consortium-docs"];
  const matches=(items.data||[]).filter(x=>sku.has(x.service_id)&&tiers.includes(sku.get(x.service_id)!)).map(x=>sku.get(x.service_id)!);
  if(!matches.length)return output({authorized:false,plan:null});
  const plan=tiers.slice().reverse().find(x=>matches.includes(x))!;
  const labOrderIds=new Set((items.data||[]).filter(x=>tiers.includes(sku.get(x.service_id)!)).map(x=>x.order_id));
  const orderHistory=paid.filter(o=>labOrderIds.has(o.id)).map(o=>({order_number:o.order_number,paid_at:o.paid_at,payment_status:o.payment_status})); 
- return output({authorized:true,plan,features:{lab_account:true,consortium:plan!=="lab-account",compliance_docs:plan==="lab-account-random-consortium-docs"},order_history:orderHistory});
+ return output({authorized:true,plan,features:{lab_account:plan!=="lab-account-workflow-test-1",workflow_test:plan==="lab-account-workflow-test-1",consortium:["lab-account-random-consortium","lab-account-random-consortium-docs"].includes(plan),compliance_docs:plan==="lab-account-random-consortium-docs"},order_history:orderHistory});
  }catch(e){console.error("lab account access check",e);return output({error:"Unable to verify account access"},500)}
 });
