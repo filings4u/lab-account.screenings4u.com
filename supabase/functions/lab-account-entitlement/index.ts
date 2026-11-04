@@ -14,8 +14,6 @@ Deno.serve(async(req:Request)=>{
  const auth=createClient(url,pub,{auth:{persistSession:false,autoRefreshToken:false}});
  const {data:{user},error:authError}=await auth.auth.getUser(token);
  if(authError||!user||!user.email_confirmed_at)return output({error:"Verified account required"},403);
- // Scoped internal QA access: verified account only, Lab Account portal only; no purchase or consortium entitlement is created.
- if(user.id==="fc427ef7-16fa-4e36-a1ba-4e760035b32f"&&user.email?.toLowerCase()==="aerving1@gmail.com")return output({authorized:true,plan:"lab-account",access_source:"internal_qa",features:{lab_account:true,consortium:false,compliance_docs:false},order_history:[]});
  const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
  const q=await db.from("orders").select("id,order_number,paid_at,payment_status,user_id,customer_email").or("user_id.eq."+user.id+",customer_email.eq."+user.email!.toLowerCase()).order("created_at",{ascending:false}).limit(100);
  if(q.error)throw q.error;
