@@ -56,10 +56,10 @@ async function loadResults(){
 const billingMarkup=()=>'<div class="billing-center"><div class="lab-overview-head"><div><h2>Invoices from screenings4u</h2><p>Review invoices sent to your account, payment status and outstanding balances.</p></div><button type="button" id="refreshBilling" class="signout">Refresh invoices</button></div><div id="billingNotice" class="results-message" role="status" aria-live="polite">Loading invoices…</div><div id="billingContent" hidden><div class="dash-kpis" id="billingStats"></div><div class="results-controls"><label>Search invoices<input id="billingSearch" type="search" placeholder="Invoice number, status or customer"></label><label>Status<select id="billingStatus"><option value="">All statuses</option><option value="open">Open</option><option value="paid">Paid</option><option value="past_due">Past due</option><option value="partial">Partially paid</option><option value="void">Void</option></select></label></div><div class="results-table-wrap"><table class="results-table"><thead><tr><th>Invoice</th><th>Issued</th><th>Due</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody id="billingRows"></tbody></table></div></div></div>';
 let billingCache=[];
 const billMoney=(n,c='USD')=>new Intl.NumberFormat('en-US',{style:'currency',currency:/^[A-Z]{3}$/.test(String(c||'').toUpperCase())?String(c).toUpperCase():'USD'}).format(Number(n)||0);
-async function billingCall(){
+async function billingCall(invoiceId=''){
  const {data:{session}}=await window.labAccountClient.auth.getSession();
  if(!session)throw Error('Please sign in again.');
- const res=await fetch(cfg.supabaseUrl+'/functions/v1/lab-account-billing',{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.supabasePublishableKey,Authorization:'Bearer '+session.access_token},body:'{}'});
+ const res=await fetch(cfg.supabaseUrl+'/functions/v1/lab-account-billing',{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.supabasePublishableKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify(invoiceId?{invoice_id:invoiceId}:{})});
  const data=await res.json().catch(()=>({}));
  if(!res.ok||data.error)throw Error(data.error||'Unable to load invoices.');
  return data;
@@ -315,10 +315,11 @@ async function loadRecordDetail(){
    sections.push('<p class="record-note">Official laboratory documents are available only after they have been published to your authorized account. <a href="/documents.html">Go to Documents</a></p>');
   }
   if(spec.type==='invoice'){
-   const d=await billingCall(),x=(d.invoices||[]).find(o=>String(o.id)===id);if(!x)throw Error('Invoice not found for this account.');
+   const d=await billingCall(id),x=d.invoice;if(!x)throw Error('Invoice not found for this account.');
    ref=x.invoice_number||'Invoice';status=String(x.status||'Open').replaceAll('_',' ');
    summary=[['Invoice amount',billMoney(x.total,x.currency)],['Amount paid',billMoney(x.amount_paid,x.currency)],['Balance due',billMoney(x.amount_due,x.currency)]];
    sections.push(section('Invoice information','Billing details and payment terms',[['Invoice number',x.invoice_number],['Billed to',x.customer_name],['Date issued',resultDate(x.issue_date||x.created_at)],['Payment due',resultDate(x.due_date)],['Payment status',status],['Payment terms',x.terms]]));
+   if((d.items||[]).length)sections.push(section('Invoice line items','Services billed on this invoice',(d.items||[]).map(item=>[String(item.description||'Service')+' × '+Number(item.quantity||0),billMoney(item.line_total,x.currency)])));
    if(x.notes)sections.push(section('Notes','Information supplied with this invoice',[['Invoice notes',x.notes]]));
   }
   if(spec.type==='history'){
