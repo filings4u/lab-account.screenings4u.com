@@ -1,6 +1,11 @@
 import {createClient} from "npm:@supabase/supabase-js@2";
 const H={"Content-Type":"application/json","Cache-Control":"no-store","Access-Control-Allow-Origin":"https://lab-account.screenings4u.com","Access-Control-Allow-Headers":"authorization,apikey,content-type,x-client-info","Access-Control-Allow-Methods":"POST,OPTIONS"};
 const reply=(x:unknown,s=200)=>new Response(JSON.stringify(x),{status:s,headers:H});
+const customerAcknowledgment=async(email:string,reference:string)=>{
+ const key=Deno.env.get("RESEND_API_KEY")||"";if(!key||!email)return "not_configured";
+ const html='<div style="background:#f2f6fb;padding:26px;font-family:Arial,sans-serif;color:#01122f"><div style="max-width:600px;margin:auto;background:#fff;border-radius:12px;overflow:hidden"><div style="background:#01122f;color:white;padding:24px;font-size:20px;font-weight:bold">Workforce by screenings4u</div><div style="padding:26px"><h1 style="font-size:21px">Support request received</h1><p>Your Lab Account support request '+reference+' has been received. Our team will review it and reply in your portal.</p><a href="https://lab-account.screenings4u.com/support.html" style="display:inline-block;background:#fdc102;color:#01122f;padding:12px 16px;text-decoration:none;border-radius:8px">View Support</a></div></div></div>';
+ try{const r=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},body:JSON.stringify({from:Deno.env.get("SCREENINGS4U_FROM_EMAIL")||"screenings4u <notifications@screenings4u.com>",to:[email],subject:"Workforce | Support request received — "+reference,html})});if(!r.ok)console.error("Lab support customer email",r.status);return r.ok?"sent":"failed"}catch(e){console.error("Lab support customer acknowledgment",e);return "failed"}
+};
 const alertManagement=async(db:any,customer:string,ticketNumber:string,subject:string,description:string)=>{
  const admin=Deno.env.get("SCREENINGS4U_ADMIN_EMAIL")||"";
  const key=Deno.env.get("RESEND_API_KEY")||"";
@@ -41,7 +46,7 @@ Deno.serve(async req=>{
  const ticket=await db.from("support_tickets").insert({id,ticket_number:"SUP-"+Date.now().toString(36).toUpperCase()+"-"+id.slice(0,5).toUpperCase(),subject,status:"open",priority,category,customer_user_id:uid,requester_name:String(user.user_metadata?.full_name||user.email||"").slice(0,180),requester_email:user.email,source:"lab_account_portal",created_by:uid,last_message_at:timestamp,created_at:timestamp,updated_at:timestamp,metadata:{portal:"lab_account"}}).select("id,ticket_number").single();if(ticket.error)throw ticket.error;
  const msg=await db.from("support_ticket_messages").insert({id:crypto.randomUUID(),ticket_id:id,sender_user_id:uid,sender_type:"customer",body:message,is_internal_note:false,metadata:{portal:"lab_account"},created_at:timestamp});
  if(msg.error){await db.from("support_tickets").delete().eq("id",id).eq("customer_user_id",uid);throw msg.error;}
- const notification_status=await alertManagement(db,user.email||"",ticket.data.ticket_number,subject,message);
+ const notification_status={admin:await alertManagement(db,user.email||"",ticket.data.ticket_number,subject,message),customer:await customerAcknowledgment(user.email||"",ticket.data.ticket_number)};
  return reply({ticket:ticket.data,notification_status});
  }
  if(action==="reply"){
