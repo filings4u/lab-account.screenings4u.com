@@ -1,0 +1,8 @@
+# Workforce is the sole sign-in and portal selector.
+# Keep /auth-handoff.html, password-reset callback, and authenticated portal pages local.
+/ https://workforceapps.screenings4u.com/ 302
+/index.html https://workforceapps.screenings4u.com/ 302
+/login.html https://workforceapps.screenings4u.com/ 302
+/portal-login.html https://workforceapps.screenings4u.com/ 302
+/selector.html https://workforceapps.screenings4u.com/selector.html 302
+/forgot-password.html https://workforceapps.screenings4u.com/forgot-password.html 302
