@@ -15,6 +15,10 @@ Deno.serve(async(req:Request)=>{
  const {data:{user},error:authError}=await auth.auth.getUser(token);
  if(authError||!user||!user.email_confirmed_at)return output({error:"Verified account required"},403);
  const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
+ const grant=await db.from("testing_customer_portal_access").select("status,metadata").eq("user_id",user.id).maybeSingle();
+ if(grant.error)throw grant.error;
+ if(grant.data?.status==="active"&&grant.data?.metadata?.lab_account_customer_preview===true)
+   return output({authorized:true,plan:"lab-account",features:{lab_account:true,workflow_test:true,consortium:false,compliance_docs:false},preview:true,order_history:[]});
  const q=await db.from("orders").select("id,order_number,paid_at,payment_status,user_id,customer_email").or("user_id.eq."+user.id+",customer_email.eq."+user.email!.toLowerCase()).order("created_at",{ascending:false}).limit(100);
  if(q.error)throw q.error;
  const paid=(q.data||[]).filter(x=>x.paid_at!==null||["paid","succeeded"].includes(String(x.payment_status||"").toLowerCase()));
