@@ -274,3 +274,11 @@ body[data-portal-page="support"] .results-table{min-width:900px}
 .handoff-return{display:inline-flex;justify-content:center;padding:11px 17px;border-radius:8px;background:#01122F;color:#fff;font-weight:800;font-size:13px}
 .handoff-return[hidden]{display:none!important}
 @media(max-width:700px){.handoff-page{padding:15px}.handoff-card{padding:28px 20px}.content{width:100%;min-width:0}}
+
+/* Paid Lab Account plan summary: live entitlement data, no placeholder metrics. */
+.dash-current-plan{display:flex;gap:20px;align-items:center;justify-content:space-between;margin:18px 0;padding:22px 24px;border-left:4px solid #FDC102!important;background:#fff}
+.dash-current-plan h3{font-size:21px;margin:5px 0 8px;color:#01122F}
+.dash-current-plan p{margin:0;color:#64728a;font-size:13px;line-height:1.65}
+.dash-current-plan small{font-size:10px;letter-spacing:.12em;font-weight:900;color:#886500}
+.dash-current-plan .dash-action{white-space:nowrap}
+@media(max-width:760px){.dash-current-plan{align-items:stretch;flex-direction:column;padding:20px}.dash-current-plan .dash-action{text-align:center}}
