@@ -45,8 +45,11 @@ Deno.serve(async(req:Request)=>{
   verifiedUpgrades=(upgrades.data||[]).filter((x:any)=>actuallyPaid.has(x.order_id)&&tiers.includes(x.target_plan_sku));
  }
  const plan=tiers.slice().reverse().find(x=>x===paidPlan||verifiedUpgrades.some((y:any)=>y.target_plan_sku===x))!;
+ const addon=await db.from("lab_consortium_subscriptions").select("status,last_invoice_paid_at,current_period_end").eq("user_id",user.id).maybeSingle();
+ if(addon.error)throw addon.error;
+ const consortiumAddonActive=plan==="lab-account"&&addon.data?.status==="active"&&!!addon.data.last_invoice_paid_at&&(!addon.data.current_period_end||Date.parse(addon.data.current_period_end)>Date.now());
  const labOrderIds=new Set((items.data||[]).filter(x=>tiers.includes(sku.get(x.service_id)!)).map(x=>x.order_id));
  const orderHistory=paid.filter(o=>labOrderIds.has(o.id)).map(o=>({order_number:o.order_number,paid_at:o.paid_at,payment_status:o.payment_status})); 
- return output({authorized:true,plan,features:{lab_account:plan!=="lab-account-workflow-test-1",workflow_test:plan==="lab-account-workflow-test-1",consortium:["lab-account-random-consortium","lab-account-random-consortium-docs"].includes(plan),compliance_docs:plan==="lab-account-random-consortium-docs"},order_history:orderHistory});
+ return output({authorized:true,plan,features:{lab_account:plan!=="lab-account-workflow-test-1",workflow_test:plan==="lab-account-workflow-test-1",consortium:consortiumAddonActive||["lab-account-random-consortium","lab-account-random-consortium-docs"].includes(plan),consortium_addon_active:consortiumAddonActive,compliance_docs:plan==="lab-account-random-consortium-docs"},subscription_status:addon.data?.status||"none",order_history:orderHistory});
  }catch(e){console.error("lab account access check",e);return output({error:"Unable to verify account access"},500)}
 });
