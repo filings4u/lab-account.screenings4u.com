@@ -58,9 +58,28 @@ Deno.serve(async req=>{
    if(action==="save"){
     const supply_name=String(b.supply_name||"").trim().slice(0,160),reorder_threshold=Number(b.reorder_threshold),estimated_on_hand=Number(b.estimated_on_hand),enabled=b.enabled!==false;
     if(supply_name.length<2||!Number.isInteger(reorder_threshold)||reorder_threshold<1||reorder_threshold>100000||!Number.isInteger(estimated_on_hand)||estimated_on_hand<0||estimated_on_hand>1000000)return send({error:"Enter a valid supply name and nonnegative quantities"},400);
+    const previous=await db.from("lab_portal_supply_alerts").select("id,last_alert_at,estimated_on_hand,reorder_threshold,enabled").eq("customer_user_id",owner).eq("supply_name",supply_name).maybeSingle();
+    if(previous.error)throw previous.error;
     const q=await db.from("lab_portal_supply_alerts").upsert({customer_user_id:owner,supply_name,reorder_threshold,estimated_on_hand,enabled,updated_at:new Date().toISOString()},{onConflict:"customer_user_id,supply_name"}).select("id").single();
     if(q.error)throw q.error;
-    return send({ok:true,needs_reorder:enabled&&estimated_on_hand<=reorder_threshold});
+    const low=enabled&&estimated_on_hand<=reorder_threshold;
+    const previouslyLow=previous.data?.enabled&&previous.data?.estimated_on_hand<=previous.data?.reorder_threshold;
+    const last=previous.data?.last_alert_at?Date.parse(previous.data.last_alert_at):0;
+    let emailSent=false;
+    if(low&&(!previouslyLow||!last||Date.now()-last>24*60*60*1000)){
+      const resend=Deno.env.get("RESEND_API_KEY")||"",from=Deno.env.get("SCREENINGS4U_FROM_EMAIL")||"";
+      const customer=String(user.email||"");
+      if(resend&&from&&customer){
+        const clean=(v:string)=>v.replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]||ch));
+        const html='<div style="background:#eef2f7;padding:25px;font:15px Arial,sans-serif;color:#01122F"><div style="margin:auto;max-width:600px;background:#fff;border-radius:12px;padding:28px"><img src="https://workforce.screenings4u.com/images/logo2.png" alt="Workforce" style="width:200px;background:#01122F;padding:15px;border-radius:8px"><h2>Supply reorder alert</h2><p>Your entered inventory estimate for <strong>'+clean(supply_name)+'</strong> is '+estimated_on_hand+' with a reorder threshold of '+reorder_threshold+'.</p><p>Review your inventory and submit an order if more supplies are needed.</p><a href="https://lab-account.screenings4u.com/supply-alerts.html" style="display:inline-block;background:#FDC102;color:#01122F;padding:12px 16px;border-radius:6px;text-decoration:none;font-weight:bold">Review supply alerts</a></div></div>';
+        try{
+          const resp=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:"Bearer "+resend,"Content-Type":"application/json"},body:JSON.stringify({from,to:[customer],subject:"Workforce Lab Account — supply reorder alert",html})});
+          if(resp.ok){emailSent=true;await db.from("lab_portal_supply_alerts").update({last_alert_at:new Date().toISOString()}).eq("id",q.data.id).eq("customer_user_id",owner)}
+          else console.warn("Supply reminder could not be sent",resp.status);
+        }catch(error){console.warn("Supply reminder delivery unavailable",error)}
+      }
+    }
+    return send({ok:true,needs_reorder:low,email_sent:emailSent});
    }
    if(action==="delete"){
     if(!uid(b.id))return send({error:"Invalid alert"},400);
