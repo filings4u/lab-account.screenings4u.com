@@ -18,10 +18,10 @@ Deno.serve(async req=>{
   const ent=await verified.json().catch(()=>({}));
   if(!verified.ok||ent.authorized!==true)return send({error:"Lab Account access required"},403);
   if(ent.preview===true)return send({error:"Preview-only Lab Accounts cannot request commercial upgrades"},403);
-  if(ent.customer_test_access===true&&String((await req.clone().json().catch(()=>({})).action||"catalog")!=="catalog")return send({error:"This customer test account may use included services, but purchases must use a separately paid customer account."},403);
   const db=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});
   const payload=await req.json().catch(()=>({}));
   const action=String(payload.action||"catalog");
+  if(ent.customer_test_access===true&&action!=="catalog")return send({error:"This customer test account has included feature access, but cannot create purchases without payment."},403);
   const plan=SKUS.includes(ent.plan)?ent.plan:null;
   if(!plan)return send({error:"A paid commercial Lab Account plan is required for upgrades",plan_type:"workflow_test"},403);
   const [f,p,o,u]=await Promise.all([
