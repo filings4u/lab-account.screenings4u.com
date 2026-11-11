@@ -20,20 +20,24 @@ Deno.serve(async(req:Request)=>{
  const body=await req.json().catch(()=>({}));
  const action=String(body.action||"list");
  const fields="id,title,description,document_type,mime_type,file_size,created_at,storage_bucket,storage_path";
+ const allowedTypes=["lab_account","lab_account_notice","lab_account_setup","lab_account_document","lab_account_compliance","lab_account_guide","lab_account_howto"];
+ const issued=()=>db.from("lab_customer_published_documents").select("id,title,description,category,mime_type,file_size,created_at,original_filename").eq("customer_user_id",user.id).eq("is_published",true).is("archived_at",null).order("created_at",{ascending:false}).limit(250);
  const intakeKeys=["lab_account_intake","lab_account_intake_standalone"];
  const ownForms=()=>db.from("standalone_form_submissions").select("id,submission_number,form_title,status,created_at,payload").in("form_key",intakeKeys).or("customer_user_id.eq."+user.id+(user.email?",submitter_email.ilike."+user.email.replace(/[%_,]/g,""):"")).order("created_at",{ascending:false}).limit(150);
 
  if(action==="list"){
- const d=await db.from("documents").select(fields).eq("owner_user_id",user.id).is("archived_at",null).order("created_at",{ascending:false}).limit(250);
+ const [d,published]=await Promise.all([db.from("documents").select(fields).eq("owner_user_id",user.id).in("document_type",allowedTypes).is("archived_at",null).order("created_at",{ascending:false}).limit(250),issued()]);
+ if(published.error)throw published.error;
  if(d.error)throw d.error;
  const formResult=await ownForms();if(formResult.error)throw formResult.error;
  const forms=formResult.data||[],formIds=forms.map((x:any)=>x.id);
  const attached=formIds.length?await db.from("standalone_form_submission_files").select("id,submission_id,original_file_name,document_type,mime_type,byte_size,created_at,storage_bucket,storage_path").in("submission_id",formIds).limit(250):{data:[],error:null};
  if(attached.error)throw attached.error;
+ const staffDocs=(published.data||[]).map((x:any)=>({id:x.id,title:x.title,description:x.description,document_type:x.category==="how_to"?"how_to_guide":x.category==="account"?"account_document":x.category==="supplies"?"supply_guide":"compliance_document",category:x.category,source:"published",mime_type:x.mime_type,file_size:x.file_size,created_at:x.created_at,downloadable:true}));
  const ordinary=(d.data||[]).map((x:any)=>({id:x.id,title:x.title,description:x.description,document_type:x.document_type,source:"account",mime_type:x.mime_type,file_size:x.file_size,created_at:x.created_at,downloadable:!!(x.storage_bucket&&x.storage_path)}));
  const intakeDocs=forms.map((x:any)=>({id:x.id,title:x.form_title||"Lab Account Intake",description:"Submitted intake "+x.submission_number,document_type:"intake_form",source:"intake",mime_type:"application/pdf",file_size:null,created_at:x.created_at,downloadable:true}));
  const files=(attached.data||[]).map((x:any)=>({id:x.id,title:x.original_file_name||"Intake attachment",description:"Attached to Lab Account Intake",document_type:x.document_type||"intake_attachment",source:"attachment",mime_type:x.mime_type,file_size:x.byte_size,created_at:x.created_at,downloadable:!!(x.storage_bucket&&x.storage_path)}));
- return out({documents:[...ordinary,...intakeDocs,...files].sort((a:any,b:any)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime())});
+ return out({documents:[...staffDocs,...ordinary,...intakeDocs,...files].sort((a:any,b:any)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime())});
  }
  if(action==="intake"){
   const id=String(body.id||"");if(!/^[0-9a-f-]{36}$/i.test(id))return out({error:"Invalid intake"},400);
@@ -72,6 +76,16 @@ Deno.serve(async(req:Request)=>{
    return out({pdf_base64:btoa(parts.join("")),filename:"Workforce-Lab-Account-Intake.pdf"});
   }
   return out({intake:{title:row.form_title||"Lab Account Intake",reference:row.submission_number,created_at:row.created_at,payload:row.payload||{}}});
+ }
+ if(action==="published"){
+  const id=String(body.id||"");
+  if(!/^[0-9a-f-]{36}$/i.test(id))return out({error:"Invalid document"},400);
+  const record=await db.from("lab_customer_published_documents").select("id,title,storage_bucket,storage_path,original_filename").eq("id",id).eq("customer_user_id",user.id).eq("is_published",true).is("archived_at",null).maybeSingle();
+  if(record.error)throw record.error;
+  if(!record.data)return out({error:"Document not found for this account"},404);
+  const signed=await db.storage.from("testing-private-documents").createSignedUrl(record.data.storage_path,120,{download:body.download===true?record.data.original_filename:undefined});
+  if(signed.error)throw signed.error;
+  return out({url:signed.data.signedUrl,title:record.data.title,mime_type:"application/pdf"});
  }
  if(action==="download"){
  const id=String(body.id||"");
