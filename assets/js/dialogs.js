@@ -1,6 +1,6 @@
 /* Shared accessible dialogs for Workforce Lab Account. */
 (function(){'use strict';
-function ask({title='Screenings4u Workforce',message='',kind='alert',confirmText='Continue',cancelText='Cancel',danger=false}={}){
+function ask({title='Workforce',message='',kind='alert',confirmText='Continue',cancelText='Cancel',danger=false}={}){
  return new Promise(resolve=>{
  const overlay=document.createElement('div');overlay.style.cssText='position:fixed;inset:0;z-index:2147483646;display:grid;place-items:center;background:rgba(16,47,85,.72);padding:20px';
  const panel=document.createElement('section');panel.setAttribute('role','alertdialog');panel.setAttribute('aria-modal','true');panel.style.cssText='max-width:460px;width:100%;background:#fff;color:#143455;border-radius:14px;padding:24px;font:14px system-ui,sans-serif;box-shadow:0 16px 60px #0015';
