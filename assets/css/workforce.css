@@ -293,3 +293,28 @@ body[data-portal-page="support"] .results-table{min-width:900px}
 .app .lab-store-upgrade:hover,.app button.lab-store-upgrade:hover{background:#e7b100!important}
 .app .lab-store-benefits li:before{color:#ad8000}
 .app .lab-store-feature-icon{color:#a87900}
+
+/* Plan-restricted Workforce service management workspaces. */
+.premium-workspace{width:100%;max-width:1450px}
+.premium-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,1fr);gap:18px;margin-top:22px;align-items:start}
+.premium-workspace .dash-card{min-width:0;padding:23px}
+.premium-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0 24px}
+.premium-service-choice{border:1px solid #dce4ef;border-radius:10px;background:#fff;display:grid;gap:6px;text-align:left;padding:13px 14px;cursor:pointer;color:#01122F}
+.premium-service-choice strong{font-size:13px}
+.premium-service-choice span{font-size:11px;color:#65718a;line-height:1.6}
+.premium-service-choice[aria-pressed="true"]{border:2px solid #FDC102;background:#fffbeb}
+.premium-form-field{display:grid;gap:7px;font-size:12px;font-weight:750;color:#01122F;margin-bottom:13px}
+.premium-form-field input,.premium-form-field textarea{width:100%;min-width:0;border:1px solid #dce4ef;border-radius:8px;padding:12px;background:#fff;color:#01122F;outline-offset:2px;font:inherit}
+.premium-form-field textarea{min-height:85px;resize:vertical}
+.premium-form-field input:focus,.premium-form-field textarea:focus{outline:2px solid #FDC102}
+.premium-workspace #premiumRequestForm h4{color:#01122F;margin-bottom:17px}
+.premium-request{padding:14px 4px;border-bottom:1px solid #e3e9f0}
+.premium-request:last-child{border-bottom:0}
+.premium-request strong{display:block;color:#01122F;font-size:14px}
+.premium-request p{font-size:12px;color:#64728a;margin:6px 0;line-height:1.55}
+.premium-request button{margin-top:6px}
+.premium-locked{background:#fff;border:1px solid #dfe5ed;border-left:4px solid #FDC102;border-radius:14px;padding:24px}
+.premium-locked h2{color:#01122F;margin:0 0 12px}
+.premium-locked p{color:#65718a;line-height:1.65}
+@media(max-width:950px){.premium-layout{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:580px){.premium-service-grid{grid-template-columns:1fr}.premium-workspace .dash-card{padding:15px}}
