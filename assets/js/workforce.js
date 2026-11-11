@@ -551,7 +551,7 @@ async function initPremiumServices(){
   try{
    const data=await request({action:'list'});if(n!==nonce)return;
    const codes=new Set(config.types.map(x=>x[0]));
-   const rows=(data.requests||[]).filter(x=>codes.has(x.feature_code));
+   const rows=(data.requests||[]).filter(x=>codes.has(x.service_code));
    if(!rows.length){history.innerHTML='<p class="dash-note">You have not submitted any requests in this category.</p>';return}
    history.replaceChildren();
    for(const x of rows){
