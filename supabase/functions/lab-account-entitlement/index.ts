@@ -33,7 +33,18 @@ Deno.serve(async(req:Request)=>{
  const tiers=["lab-account-workflow-test-1","lab-account","lab-account-random-consortium","lab-account-random-consortium-docs"];
  const matches=(items.data||[]).filter(x=>sku.has(x.service_id)&&tiers.includes(sku.get(x.service_id)!)).map(x=>sku.get(x.service_id)!);
  if(!matches.length)return output({authorized:false,plan:null});
- const plan=tiers.slice().reverse().find(x=>matches.includes(x))!;
+ const paidPlan=tiers.slice().reverse().find(x=>matches.includes(x))!;
+ const upgrades=await db.from("lab_portal_upgrade_requests").select("target_plan_sku,order_id").eq("user_id",user.id).eq("status","completed");
+ if(upgrades.error)throw upgrades.error;
+ const verifiedOrderIds=(upgrades.data||[]).map((x:any)=>x.order_id).filter(Boolean);
+ let verifiedUpgrades:any[]=[];
+ if(verifiedOrderIds.length){
+  const uq=await db.from("orders").select("id,payment_status,paid_at,user_id").in("id",verifiedOrderIds).eq("user_id",user.id);
+  if(uq.error)throw uq.error;
+  const actuallyPaid=new Set((uq.data||[]).filter((x:any)=>x.paid_at&&["paid","succeeded"].includes(String(x.payment_status).toLowerCase())).map((x:any)=>x.id));
+  verifiedUpgrades=(upgrades.data||[]).filter((x:any)=>actuallyPaid.has(x.order_id)&&tiers.includes(x.target_plan_sku));
+ }
+ const plan=tiers.slice().reverse().find(x=>x===paidPlan||verifiedUpgrades.some((y:any)=>y.target_plan_sku===x))!;
  const labOrderIds=new Set((items.data||[]).filter(x=>tiers.includes(sku.get(x.service_id)!)).map(x=>x.order_id));
  const orderHistory=paid.filter(o=>labOrderIds.has(o.id)).map(o=>({order_number:o.order_number,paid_at:o.paid_at,payment_status:o.payment_status})); 
  return output({authorized:true,plan,features:{lab_account:plan!=="lab-account-workflow-test-1",workflow_test:plan==="lab-account-workflow-test-1",consortium:["lab-account-random-consortium","lab-account-random-consortium-docs"].includes(plan),compliance_docs:plan==="lab-account-random-consortium-docs"},order_history:orderHistory});
