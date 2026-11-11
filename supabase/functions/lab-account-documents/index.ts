@@ -19,6 +19,19 @@ Deno.serve(async(req:Request)=>{
  const db=createClient(url,svc,{auth:{persistSession:false,autoRefreshToken:false}});
  const body=await req.json().catch(()=>({}));
  const action=String(body.action||"list");
+ const imageToPdf=async(bucket:string,path:string,mime:string,filename:string)=>{
+  const downloaded=await db.storage.from(bucket).download(path);
+  if(downloaded.error||!downloaded.data)throw downloaded.error||Error("Unable to access the authorized image");
+  const data=new Uint8Array(await downloaded.data.arrayBuffer());
+  if(!data.length||data.byteLength>15_000_000)throw Error("This image is too large to convert");
+  const pdf=await PDFDocument.create();
+  const img=mime==="image/jpeg"?await pdf.embedJpg(data):await pdf.embedPng(data);
+  const width=612,height=792,scale=Math.min((width-64)/img.width,(height-64)/img.height);
+  const page=pdf.addPage([width,height]);page.drawImage(img,{x:(width-img.width*scale)/2,y:(height-img.height*scale)/2,width:img.width*scale,height:img.height*scale});
+  const bytes=await pdf.save(),chunks:string[]=[];
+  for(let i=0;i<bytes.length;i+=32768)chunks.push(String.fromCharCode(...bytes.slice(i,i+32768)));
+  return out({pdf_base64:btoa(chunks.join("")),filename:filename.replace(/\.[^.]+$/,"")+".pdf",mime_type:"application/pdf"});
+ };
  const fields="id,title,description,document_type,mime_type,file_size,created_at,storage_bucket,storage_path";
  const allowedTypes=["lab_account","lab_account_notice","lab_account_setup","lab_account_document","lab_account_compliance","lab_account_guide","lab_account_howto"];
  const issued=()=>db.from("lab_customer_published_documents").select("id,title,description,category,mime_type,file_size,created_at,original_filename").eq("customer_user_id",user.id).eq("is_published",true).is("archived_at",null).order("created_at",{ascending:false}).limit(250);
@@ -66,6 +79,7 @@ Deno.serve(async(req:Request)=>{
    y-=14;
    const source=row.payload&&typeof row.payload==="object"&&!Array.isArray(row.payload)?row.payload:{};
    for(const [field,value] of Object.entries(source)){
+    if(/(?:captcha|turnstile|token|password|credential|secret|api[_-]?key|authorization|form_started_at)/i.test(field))continue;
     if(y<70)nextPage();write(String(field).replace(/[_-]/g," ").toUpperCase(),10,true);
     const valueText=typeof value==="string"?value:JSON.stringify(value);
     write(String(valueText??"").slice(0,3000),10);
@@ -93,8 +107,9 @@ Deno.serve(async(req:Request)=>{
  if(String(body.source||"")==="attachment"){
   const forms=await ownForms();if(forms.error)throw forms.error;
   const ids=(forms.data||[]).map((x:any)=>x.id);if(!ids.length)return out({error:"File not found"},404);
-  const attached=await db.from("standalone_form_submission_files").select("storage_bucket,storage_path,original_file_name").eq("id",id).in("submission_id",ids).maybeSingle();
+  const attached=await db.from("standalone_form_submission_files").select("storage_bucket,storage_path,original_file_name,mime_type").eq("id",id).in("submission_id",ids).maybeSingle();
   if(attached.error)throw attached.error;if(!attached.data)return out({error:"File not found"},404);
+  if(body.download===true&&["image/jpeg","image/png"].includes(attached.data.mime_type))return await imageToPdf(attached.data.storage_bucket,attached.data.storage_path,attached.data.mime_type,attached.data.original_file_name||"Lab-Account-Image");
   const signed=await db.storage.from(attached.data.storage_bucket).createSignedUrl(attached.data.storage_path,300,{download:body.download===true?String(attached.data.original_file_name||"Lab-Document.pdf").replace(/[\\/\r\n"<>]/g,"_"):undefined});
   if(signed.error)throw signed.error;
   return out({url:signed.data.signedUrl,title:attached.data.original_file_name||"Intake attachment"});
@@ -103,6 +118,7 @@ Deno.serve(async(req:Request)=>{
  if(q.error)throw q.error;
  if(!q.data)return out({error:"Document not found"},404);
  if(!q.data.storage_bucket||!q.data.storage_path)return out({error:"Document file unavailable"},404);
+ if(body.download===true&&["image/jpeg","image/png"].includes(q.data.mime_type))return await imageToPdf(q.data.storage_bucket,q.data.storage_path,q.data.mime_type,q.data.title||"Lab-Document");
  const signed=await db.storage.from(q.data.storage_bucket).createSignedUrl(q.data.storage_path,300,{download:body.download===true?String(q.data.title||"Lab-Document.pdf").replace(/[\\/\r\n"<>]/g,"_"):undefined});
  if(signed.error)throw signed.error;
  return out({url:signed.data.signedUrl,title:q.data.title||"Document"});
