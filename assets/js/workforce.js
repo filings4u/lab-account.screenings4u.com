@@ -385,6 +385,23 @@ async function initLabStore(){
   const planFeatures=sku=>(d.plan_feature_codes?.[sku]||[]).map(code=>featureByCode.get(code)).filter(Boolean);
   const params=new URLSearchParams(location.search);
   notice.textContent=params.get('consortium')==='return'?'Your consortium subscription is being verified. Active access will appear after Stripe confirms the first payment.':params.get('upgrade')==='success'?'Payment confirmation received. Your current verified plan is '+name(d.plan_sku)+'. If payment was just completed and features are still processing, refresh shortly.':'Your current plan is '+name(d.plan_sku)+'. Existing account records are preserved when upgrading.';
+  if(params.get('consortium')==='return'&&!d.consortium_subscription?.active){
+   let checks=0;
+   const poll=window.setInterval(async()=>{
+    checks++;
+    try{
+     const update=await request({action:'catalog'});
+     if(update.consortium_subscription?.active){
+      window.clearInterval(poll);
+      location.replace('store.html?consortium=active');
+     }else if(checks>=15){
+      window.clearInterval(poll);
+      notice.textContent='Your subscription payment is still being confirmed. Refresh this page later if the entitlement has not appeared.';
+     }
+    }catch(e){if(checks>=15)window.clearInterval(poll)}
+   },2000);
+  }
+  if(params.get('consortium')==='active')notice.textContent='Your consortium subscription is active and eligible features are now available in your Lab Account.';
   plans.innerHTML='<h3>Choose your Lab Account plan</h3><div class="lab-store-plan-grid">'+order.map((sku,i)=>{const current=sku===d.plan_sku,higher=i>order.indexOf(d.plan_sku),path=(d.upgrades||[]).find(x=>x.target_plan_sku===sku),requested=pending.has(sku);
    const text=current?'Your current plan':higher?'Upgrade to this plan':'Included in your current plan';
    const action=current?'<span class="lab-store-state">Current plan</span>':higher?(requested?'<span class="lab-store-state">Payment pending</span>':path?.ready?'<button class="lab-store-upgrade" type="button" data-upgrade="'+escape(sku)+'">Purchase upgrade · '+(Number(path.price_cents||0)/100).toLocaleString('en-US',{style:'currency',currency:'USD'})+'</button>':'<span class="lab-store-state">Checkout unavailable</span>'):'<span class="lab-store-state">Included</span>';
