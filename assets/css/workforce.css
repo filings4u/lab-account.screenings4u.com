@@ -282,3 +282,14 @@ body[data-portal-page="support"] .results-table{min-width:900px}
 .dash-current-plan small{font-size:10px;letter-spacing:.12em;font-weight:900;color:#886500}
 .dash-current-plan .dash-action{white-space:nowrap}
 @media(max-width:760px){.dash-current-plan{align-items:stretch;flex-direction:column;padding:20px}.dash-current-plan .dash-action{text-align:center}}
+
+/* Brand contrast and hero alignment, consistent with Workforce C/TPA. */
+.app .hero{background:linear-gradient(115deg,#01122F 0%,#10284f 65%,#1c3660 100%);color:#fff;border:1px solid #273b5b}
+.app .hero:after{border-color:rgba(253,193,2,.14)}
+.app .hero-kicker{color:#FDC102}
+.app .switch-portal{color:#01122F;background:#FDC102;font-weight:850}
+.app .switch-portal:hover{background:#edb500}
+.app .lab-store-upgrade,.app button.lab-store-upgrade{color:#01122F!important;background:#FDC102!important}
+.app .lab-store-upgrade:hover,.app button.lab-store-upgrade:hover{background:#e7b100!important}
+.app .lab-store-benefits li:before{color:#ad8000}
+.app .lab-store-feature-icon{color:#a87900}
