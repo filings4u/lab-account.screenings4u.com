@@ -1,4 +1,5 @@
 import {createClient} from "npm:@supabase/supabase-js@2";
+import {PDFDocument,StandardFonts,rgb} from "npm:pdf-lib@1.17.1";
 const origin="https://lab-account.screenings4u.com";
 Deno.serve(async(req:Request)=>{
  const H={"Access-Control-Allow-Origin":origin,"Access-Control-Allow-Headers":"authorization,apikey,content-type,x-client-info","Access-Control-Allow-Methods":"POST,OPTIONS","Content-Type":"application/json","Cache-Control":"no-store"};
@@ -30,7 +31,7 @@ Deno.serve(async(req:Request)=>{
  const attached=formIds.length?await db.from("standalone_form_submission_files").select("id,submission_id,original_file_name,document_type,mime_type,byte_size,created_at,storage_bucket,storage_path").in("submission_id",formIds).limit(250):{data:[],error:null};
  if(attached.error)throw attached.error;
  const ordinary=(d.data||[]).map((x:any)=>({id:x.id,title:x.title,description:x.description,document_type:x.document_type,source:"account",mime_type:x.mime_type,file_size:x.file_size,created_at:x.created_at,downloadable:!!(x.storage_bucket&&x.storage_path)}));
- const intakeDocs=forms.map((x:any)=>({id:x.id,title:x.form_title||"Lab Account Intake",description:"Submitted intake "+x.submission_number,document_type:"intake_form",source:"intake",mime_type:"text/html",file_size:null,created_at:x.created_at,downloadable:true}));
+ const intakeDocs=forms.map((x:any)=>({id:x.id,title:x.form_title||"Lab Account Intake",description:"Submitted intake "+x.submission_number,document_type:"intake_form",source:"intake",mime_type:"application/pdf",file_size:null,created_at:x.created_at,downloadable:true}));
  const files=(attached.data||[]).map((x:any)=>({id:x.id,title:x.original_file_name||"Intake attachment",description:"Attached to Lab Account Intake",document_type:x.document_type||"intake_attachment",source:"attachment",mime_type:x.mime_type,file_size:x.byte_size,created_at:x.created_at,downloadable:!!(x.storage_bucket&&x.storage_path)}));
  return out({documents:[...ordinary,...intakeDocs,...files].sort((a:any,b:any)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime())});
  }
@@ -38,6 +39,38 @@ Deno.serve(async(req:Request)=>{
   const id=String(body.id||"");if(!/^[0-9a-f-]{36}$/i.test(id))return out({error:"Invalid intake"},400);
   const q=await ownForms();if(q.error)throw q.error;const row=(q.data||[]).find((x:any)=>x.id===id);
   if(!row)return out({error:"Intake not found"},404);
+  if(body.download===true){
+   const pdf=await PDFDocument.create(),font=await pdf.embedFont(StandardFonts.Helvetica),bold=await pdf.embedFont(StandardFonts.HelveticaBold);
+   pdf.setTitle("Workforce Lab Account Intake");pdf.setAuthor("Workforce");
+   let page=pdf.addPage([612,792]),y=740;
+   const nextPage=()=>{page=pdf.addPage([612,792]);y=740};
+   const write=(txt:string,size=11,strong=false)=>{
+    const clean=String(txt||"").replace(/[^\x20-\x7E]/g," ").slice(0,20000);
+    const f=strong?bold:font;let line="";
+    for(const word of clean.split(/\s+/)){
+     const candidate=line?line+" "+word:word;
+     if(f.widthOfTextAtSize(candidate,size)>510&&line){
+      if(y<60)nextPage();page.drawText(line,{x:48,y,size,font:f,color:rgb(.06,.14,.27)});y-=size+7;line=word;
+     }else line=candidate;
+    }
+    if(line){if(y<60)nextPage();page.drawText(line,{x:48,y,size,font:f,color:rgb(.06,.14,.27)});y-=size+7}
+   };
+   write("WORKFORCE | LAB ACCOUNT",12,true);
+   y-=8;write(row.form_title||"Lab Account Intake",19,true);
+   y-=10;write("Submission: "+(row.submission_number||"Not assigned"));
+   write("Submitted: "+new Date(row.created_at).toLocaleDateString("en-US"));
+   y-=14;
+   const source=row.payload&&typeof row.payload==="object"&&!Array.isArray(row.payload)?row.payload:{};
+   for(const [field,value] of Object.entries(source)){
+    if(y<70)nextPage();write(String(field).replace(/[_-]/g," ").toUpperCase(),10,true);
+    const valueText=typeof value==="string"?value:JSON.stringify(value);
+    write(String(valueText??"").slice(0,3000),10);
+    y-=8;
+   }
+   const bytes=await pdf.save(),parts:string[]=[];
+   for(let i=0;i<bytes.length;i+=0x8000)parts.push(String.fromCharCode(...bytes.slice(i,i+0x8000)));
+   return out({pdf_base64:btoa(parts.join("")),filename:"Workforce-Lab-Account-Intake.pdf"});
+  }
   return out({intake:{title:row.form_title||"Lab Account Intake",reference:row.submission_number,created_at:row.created_at,payload:row.payload||{}}});
  }
  if(action==="download"){
