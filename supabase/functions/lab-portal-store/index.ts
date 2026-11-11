@@ -1,4 +1,5 @@
 import {createClient} from "npm:@supabase/supabase-js@2";
+import Stripe from "npm:stripe@18.5.0";
 const ORIGIN="https://lab-account.screenings4u.com";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"authorization,apikey,content-type,x-client-info","Access-Control-Allow-Methods":"POST,OPTIONS","Content-Type":"application/json","Cache-Control":"no-store"};
 const send=(body:unknown,status=200)=>new Response(JSON.stringify(body),{headers:cors,status});
@@ -29,7 +30,7 @@ Deno.serve(async req=>{
    db.from("lab_portal_upgrade_paths").select("current_plan_sku,target_plan_sku,offer_title,checkout_service_sku,checkout_enabled,status").eq("current_plan_sku",plan)
   ]);
   for(const q of [f,p,o,u])if(q.error)throw q.error;
-  const subscription=await db.from("lab_consortium_subscriptions").select("status,last_invoice_paid_at,stripe_subscription_id,current_period_end,stripe_checkout_session_id").eq("user_id",user.id).maybeSingle();
+  const subscription=await db.from("lab_consortium_subscriptions").select("status,last_invoice_paid_at,stripe_subscription_id,stripe_customer_id,current_period_end,stripe_checkout_session_id,cancel_at_period_end").eq("user_id",user.id).maybeSingle();
   if(subscription.error)throw subscription.error;
   const addonActive=plan==="lab-account"&&subscription.data?.status==="active"&&!!subscription.data?.last_invoice_paid_at&&(!subscription.data.current_period_end||Date.parse(subscription.data.current_period_end)>Date.now());
   const memberships=await db.from("organization_memberships").select("organization_id").eq("user_id",user.id).eq("status","active").limit(100);
@@ -65,19 +66,35 @@ Deno.serve(async req=>{
   if(action==="catalog"){
    const own=await db.from("lab_portal_upgrade_requests").select("id,current_plan_sku,target_plan_sku,status,created_at").eq("user_id",user.id).in("status",["checkout_pending"]).order("created_at",{ascending:false}).limit(25);
    if(own.error)throw own.error;
-   return send({plan_sku:plan,plan_names:{"lab-account":"Lab Account","lab-account-random-consortium":"Lab Account + Consortium","lab-account-random-consortium-docs":"Lab Account + Consortium + Docs"},plan_feature_codes:Object.fromEntries(SKUS.map(sku=>[sku,(p.data||[]).filter(x=>x.plan_sku===sku).map(x=>x.feature_code)])),features,offers:safeOffers,consortium_subscription:{active:addonActive,status:subscription.data?.status||"none",already_covered:otherConsortium||plan!=="lab-account"},upgrades,requests:own.data||[],commercial_checkout_enabled:upgrades.some(x=>x.ready)||safeOffers.some(x=>x.ready)});
+   return send({plan_sku:plan,plan_names:{"lab-account":"Lab Account","lab-account-random-consortium":"Lab Account + Consortium","lab-account-random-consortium-docs":"Lab Account + Consortium + Docs"},plan_feature_codes:Object.fromEntries(SKUS.map(sku=>[sku,(p.data||[]).filter(x=>x.plan_sku===sku).map(x=>x.feature_code)])),features,offers:safeOffers,consortium_subscription:{active:addonActive,status:subscription.data?.status||"none",already_covered:otherConsortium||plan!=="lab-account",cancel_at_period_end:subscription.data?.cancel_at_period_end||false,current_period_end:subscription.data?.current_period_end||null},upgrades,requests:own.data||[],commercial_checkout_enabled:upgrades.some(x=>x.ready)||safeOffers.some(x=>x.ready)});
+  }
+  if(action==="cancel_addon"){
+   if(plan!=="lab-account"||!addonActive||!subscription.data?.stripe_subscription_id)return send({error:"There is no active consortium add-on to cancel"},409);
+   if(subscription.data.cancel_at_period_end)return send({ok:true,cancel_at_period_end:true});
+   const stripe=new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!,{apiVersion:"2025-08-27.basil"});
+   const sub=await stripe.subscriptions.update(subscription.data.stripe_subscription_id,{cancel_at_period_end:true});
+   const patch:any={cancel_at_period_end:true,updated_at:new Date().toISOString()};
+   if(typeof sub.current_period_end==="number")patch.current_period_end=new Date(sub.current_period_end*1000).toISOString();
+   const up=await db.from("lab_consortium_subscriptions").update(patch).eq("user_id",user.id).eq("stripe_subscription_id",sub.id);
+   if(up.error)throw up.error;
+   return send({ok:true,cancel_at_period_end:true});
   }
   if(action==="begin_addon"){
    if(String(payload.offer_code||"")!=="consortium_125")return send({error:"Unsupported add-on"},400);
    if(plan!=="lab-account"||addonActive||otherConsortium)return send({error:"Consortium access is already included or currently active for this account."},409);
-   if(subscription.data?.stripe_checkout_session_id && subscription.data.status==="checkout_pending")return send({error:"A consortium checkout is already open. Complete or cancel it before starting another."},409);
+   if(subscription.data?.stripe_checkout_session_id && subscription.data.status==="checkout_pending"){
+    const stripe=new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!,{apiVersion:"2025-08-27.basil"});
+    const session=await stripe.checkout.sessions.retrieve(subscription.data.stripe_checkout_session_id);
+    if(session.status==="open")await stripe.checkout.sessions.expire(session.id);
+    else if(session.status==="complete")return send({error:"Your consortium payment is processing. Refresh the portal before starting another purchase."},409);
+   }
    if(subscription.data?.stripe_subscription_id && !["canceled","incomplete_expired"].includes(subscription.data.status))return send({error:"A consortium subscription already exists. Manage the existing subscription before purchasing again."},409);
    const offer=(o.data||[]).find(x=>x.offer_code==="consortium_125");
    if(!offer||offer.price_cents!==12500||offer.billing_interval!=="month")return send({error:"Consortium offer configuration is incomplete"},409);
    const raw=Array.from(crypto.getRandomValues(new Uint8Array(32))).map(v=>v.toString(16).padStart(2,"0")).join("");
    const hash=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(raw)))).map(v=>v.toString(16).padStart(2,"0")).join("");
    const expires=new Date(Date.now()+30*60*1000).toISOString();
-   const up=await db.from("lab_consortium_subscriptions").upsert({user_id:user.id,status:"checkout_pending",checkout_token_hash:hash,checkout_expires_at:expires,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+   const up=await db.from("lab_consortium_subscriptions").upsert({user_id:user.id,status:"checkout_pending",checkout_token_hash:hash,checkout_expires_at:expires,stripe_checkout_session_id:null,stripe_subscription_id:null,last_invoice_paid_at:null,current_period_end:null,cancel_at_period_end:false,updated_at:new Date().toISOString()},{onConflict:"user_id"});
    if(up.error)throw up.error;
    return send({checkout_url:"https://screenings4u.com/checkout.html?lab_addon=consortium_125&addon_token="+encodeURIComponent(raw),status:"checkout_pending"});
   }
