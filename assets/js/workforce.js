@@ -111,34 +111,85 @@ async function loadBilling(){
 }
 
 
-const documentsMarkup=()=>'<div class="results-center"><div class="lab-overview-head"><div><h2>Account documents</h2><p>View and securely download documents available to your Lab Account.</p></div><button type="button" id="refreshDocuments" class="signout">Refresh documents</button></div><div id="documentsNotice" class="results-message" role="status" aria-live="polite">Loading documents…</div><div id="documentsContent" hidden><div class="dash-kpis" id="documentsStats"></div><div class="results-controls"><label>Search documents<input id="documentsSearch" type="search" placeholder="Search title, type or description"></label><label>Document type<select id="documentsType"><option value="">All types</option></select></label></div><div class="results-table-wrap"><table class="results-table"><thead><tr><th>Document</th><th>Type</th><th>Date added</th><th>Size</th><th>Action</th></tr></thead><tbody id="documentsRows"></tbody></table></div></div></div>';
-let documentsCache=[];
+const documentsMarkup=()=>'<div class="lab-document-center"><div class="lab-overview-head"><div><h2>Lab Account Documents</h2><p>Review the intake forms you completed, documents issued for your Lab Account, and helpful instructions sent by our testing team.</p></div><button type="button" id="refreshDocuments" class="signout">Refresh documents</button></div><div class="lab-document-overview"><div><strong>My submitted forms</strong><span>Your completed Lab Account applications and attachments</span></div><div><strong>Account documents</strong><span>Private documents sent by testing operations</span></div><div><strong>How-to guides</strong><span>Instructions for orders, supplies, specimens, and testing</span></div></div><div id="documentsNotice" class="results-message" role="status" aria-live="polite">Retrieving your Lab Account documents…</div><div id="documentsContent" hidden><div class="dash-kpis" id="documentsStats"></div><nav class="lab-document-tabs" aria-label="Document categories"><button type="button" data-doc-tab="all" aria-pressed="true">All documents</button><button type="button" data-doc-tab="submitted" aria-pressed="false">My submissions</button><button type="button" data-doc-tab="account" aria-pressed="false">Account documents</button><button type="button" data-doc-tab="guides" aria-pressed="false">How-to guides</button></nav><div class="results-controls"><label>Search documents<input id="documentsSearch" type="search" placeholder="Search names, instructions, and descriptions"></label><label>Document type<select id="documentsType"><option value="">All document types</option></select></label></div><div class="results-table-wrap"><table class="results-table lab-document-table"><thead><tr><th>Document</th><th>Category</th><th>Date</th><th>Action</th></tr></thead><tbody id="documentsRows"></tbody></table></div><p class="dash-note">Your files are private. Document preview links are temporary and require a verified Lab Account session.</p></div><dialog id="documentPreview" class="lab-document-dialog" aria-labelledby="documentPreviewTitle"><div class="lab-document-modal-head"><div><span>WORKFORCE · LAB ACCOUNT</span><h2 id="documentPreviewTitle">Document preview</h2></div><button type="button" id="documentPreviewClose" aria-label="Close document preview">×</button></div><div class="lab-document-modal-body"><p id="documentPreviewStatus" role="status">Loading your document…</p><iframe id="documentPreviewFrame" title="Secure PDF document preview" referrerpolicy="no-referrer" hidden></iframe><img id="documentPreviewImage" alt="Selected account document" hidden></div><div class="lab-document-modal-actions"><button type="button" id="documentPreviewDownload" class="dash-action">Download PDF</button><button type="button" id="documentPreviewDone" class="signout">Close preview</button></div></dialog></div>';
+let documentsCache=[],documentsTab='all',documentObjectURL=null,selectedDocument=null;
 async function documentsCall(action,extra={}){
  const {data:{session}}=await window.labAccountClient.auth.getSession();if(!session)throw Error('Please sign in again.');
- const response=await fetch(cfg.supabaseUrl+'/functions/v1/lab-account-documents',{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.supabasePublishableKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action,...extra})});
+ const response=await fetch(cfg.supabaseUrl+'/functions/v1/lab-account-documents',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',apikey:cfg.supabasePublishableKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action,...extra})});
  const data=await response.json().catch(()=>({}));if(!response.ok||data.error)throw Error(data.error||'Documents unavailable.');return data;
 }
-const documentSize=v=>{const n=Number(v);return !Number.isFinite(n)||n<0?'—':n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(1)+' MB'};
+const documentSize=v=>{const n=Number(v);return !Number.isFinite(n)||n<=0?'PDF document':n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(1)+' MB'};
+const documentGroup=x=>x.source==='intake'||x.source==='attachment'?'submitted':x.category==='how_to'||x.category==='supplies'||x.document_type==='how_to_guide'||x.document_type==='supply_guide'?'guides':'account';
+const documentLabel=x=>({intake_form:'Submitted intake',account_document:'Account document',how_to_guide:'How-to guide',supply_guide:'Supply guide',compliance_document:'Compliance document',lab_account_setup:'Lab setup',lab_account:'Lab Account',lab_account_notice:'Account notice',lab_account_document:'Account document',lab_account_compliance:'Compliance',lab_account_howto:'How-to guide'})[x.document_type]||String(x.document_type||'Document').replaceAll('_',' ');
+function closeDocumentPreview(){
+ const dialog=document.querySelector('#documentPreview');
+ if(dialog?.open)dialog.close();
+ const frame=document.querySelector('#documentPreviewFrame'),img=document.querySelector('#documentPreviewImage');
+ if(frame){frame.src='about:blank';frame.hidden=true}if(img){img.removeAttribute('src');img.hidden=true}
+ if(documentObjectURL){URL.revokeObjectURL(documentObjectURL);documentObjectURL=null}
+ selectedDocument=null;
+}
+const base64PdfUrl=base64=>{
+ const raw=atob(base64),arr=Uint8Array.from(raw,c=>c.charCodeAt(0));
+ if(arr.length<5||new TextDecoder().decode(arr.slice(0,5))!=='%PDF-')throw Error('A valid PDF was not returned.');
+ documentObjectURL=URL.createObjectURL(new Blob([arr],{type:'application/pdf'}));
+ return documentObjectURL;
+};
+async function getDocumentResource(item,download){
+ const action=item.source==='intake'?'intake':item.source==='published'?'published':'download';
+ const data=await documentsCall(action,{id:item.id,source:item.source,download});
+ if(item.source==='intake'){if(!data.pdf_base64)throw Error('The intake PDF is unavailable');return {url:base64PdfUrl(data.pdf_base64),local:true,name:data.filename||'Workforce-Lab-Account-Intake.pdf',mime_type:'application/pdf'}}
+ if(!data.url)throw Error('No file was returned for this document.');
+ const url=new URL(data.url,location.href);if(url.protocol!=='https:')throw Error('An invalid document link was returned.');
+ return {url:url.href,local:false,name:item.title||'Lab-Account-Document.pdf',mime_type:item.mime_type||'application/pdf'};
+}
+async function handleDocumentAction(item,download=false){
+ const note=document.querySelector('#documentsNotice');
+ try{
+  if(download){
+   if(documentObjectURL){URL.revokeObjectURL(documentObjectURL);documentObjectURL=null}
+   const resource=await getDocumentResource(item,true);
+   const a=document.createElement('a');a.href=resource.url;a.rel='noopener';a.download=String(resource.name||'Workforce-Document').replace(/[^a-z0-9 ._-]/gi,'_').replace(/\.pdf$/i,'')+'.pdf';
+   document.body.append(a);a.click();a.remove();if(resource.local)setTimeout(()=>{if(documentObjectURL===resource.url){URL.revokeObjectURL(resource.url);documentObjectURL=null}},12000);
+   return;
+  }
+  const dialog=document.querySelector('#documentPreview'),frame=document.querySelector('#documentPreviewFrame'),img=document.querySelector('#documentPreviewImage'),status=document.querySelector('#documentPreviewStatus');
+  if(!dialog||!frame||!status)return;
+  selectedDocument=item;
+  document.querySelector('#documentPreviewTitle').textContent=item.title||'Account document';
+  frame.hidden=true;img.hidden=true;status.hidden=false;status.textContent='Opening secure document…';
+  dialog.showModal();
+  const resource=await getDocumentResource(item,item.source==='intake');
+  if(selectedDocument!==item)return;
+  if(resource.mime_type?.startsWith('image/')){img.src=resource.url;img.hidden=false}else{frame.src=resource.url;frame.hidden=false}
+  status.hidden=true;
+ }catch(e){const error=String(e.message||'Unable to open this document');if(document.querySelector('#documentPreview')?.open){const p=document.querySelector('#documentPreviewStatus');p.hidden=false;p.textContent=error}else if(note)note.textContent=error}
+}
 function drawDocuments(){
  const body=document.querySelector('#documentsRows');if(!body)return;
  const term=(document.querySelector('#documentsSearch')?.value||'').trim().toLowerCase(),type=document.querySelector('#documentsType')?.value||'';
- const list=documentsCache.filter(x=>(!type||String(x.document_type||'General')===type)&&(!term||[x.title,x.description,x.document_type].some(v=>String(v||'').toLowerCase().includes(term))));
- body.innerHTML=list.map(x=>'<tr><td><strong>'+escape(x.title||'Untitled document')+'</strong><small>'+escape(x.description||'')+'</small></td><td>'+escape(x.document_type||'General')+'</td><td>'+escape(resultDate(x.created_at))+'</td><td>'+escape(documentSize(x.file_size))+'</td><td>'+(x.downloadable?'<button type="button" class="results-view" data-document-id="'+escape(x.id)+'">View</button> <button type="button" class="results-view" data-download-id="'+escape(x.id)+'">Download</button>':'File unavailable')+'</td></tr>').join('')||'<tr><td colspan="5" class="results-empty">No documents match this search.</td></tr>';
- body.querySelectorAll('[data-download-id]').forEach(btn=>btn.addEventListener('click',()=>{const target=body.querySelector('[data-document-id="'+btn.dataset.downloadId+'"]');if(target){target.dataset.downloadMode='1';target.click()}}));
- body.querySelectorAll('[data-document-id]').forEach(btn=>btn.addEventListener('click',async()=>{btn.disabled=true;try{const item=documentsCache.find(x=>x.id===btn.dataset.documentId);const d=await documentsCall(item?.source==='intake'?'intake':'download',{id:btn.dataset.documentId,source:item?.source,download:btn.dataset.downloadMode==='1'});if(item?.source==='intake'){if(btn.dataset.downloadMode==='1'){if(!d.pdf_base64)throw Error('The PDF could not be generated');const raw=atob(d.pdf_base64),bytes=Uint8Array.from(raw,c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));const a=document.createElement('a');a.href=url;a.download=d.filename||'Workforce-Lab-Account-Intake.pdf';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000)}else{const txt=JSON.stringify(d.intake,null,2);const url=URL.createObjectURL(new Blob([txt],{type:'application/json'}));window.open(url,'_blank','noopener,noreferrer');setTimeout(()=>URL.revokeObjectURL(url),5000)}btn.dataset.downloadMode='';return}if(!d.url)throw Error('Document unavailable');if(btn.dataset.downloadMode==='1'){const a=document.createElement('a');a.href=d.url;a.download=(String(item?.title||'Lab-Document').replace(/[^a-z0-9 ._-]/gi,'_').replace(/\.pdf$/i,'')+'.pdf');a.rel='noopener';a.click()}else window.open(d.url,'_blank','noopener,noreferrer');btn.dataset.downloadMode=''}catch(e){const note=document.querySelector('#documentsNotice');if(note)note.textContent=e.message||'Unable to open document'}finally{btn.disabled=false}}));
+ const filtered=documentsCache.filter(x=>(documentsTab==='all'||documentGroup(x)===documentsTab)&&(!type||String(x.document_type||'General')===type)&&(!term||[x.title,x.description,documentLabel(x)].some(v=>String(v||'').toLowerCase().includes(term))));
+ body.innerHTML=filtered.map(x=>'<tr><td><strong>'+escape(x.title||'Untitled document')+'</strong><small>'+escape(x.description||'')+'</small></td><td><span class="lab-document-category">'+escape(documentGroup(x)==='submitted'?'My submission':documentGroup(x)==='guides'?'How-to guide':'Account document')+'</span><small>'+escape(documentLabel(x))+'</small></td><td>'+escape(resultDate(x.created_at))+'</td><td class="lab-document-actions">'+(x.downloadable?'<button type="button" class="results-view" data-doc-view="'+escape(x.id)+'">View</button> <button type="button" class="results-view lab-download" data-doc-download="'+escape(x.id)+'">Download PDF</button>':'PDF not available')+'</td></tr>').join('')||'<tr><td colspan="4" class="results-empty">No documents in this category. Documents and guides published by the testing team will appear here.</td></tr>';
+ body.querySelectorAll('[data-doc-view]').forEach(btn=>btn.onclick=async()=>{btn.disabled=true;const item=documentsCache.find(x=>x.id===btn.dataset.docView);if(item)await handleDocumentAction(item,false);btn.disabled=false});
+ body.querySelectorAll('[data-doc-download]').forEach(btn=>btn.onclick=async()=>{btn.disabled=true;const item=documentsCache.find(x=>x.id===btn.dataset.docDownload);if(item)await handleDocumentAction(item,true);btn.disabled=false});
 }
 async function loadDocuments(){
  const note=document.querySelector('#documentsNotice'),content=document.querySelector('#documentsContent');if(!note||!content)return;
  note.textContent='Loading documents…';content.hidden=true;
  try{
- const data=await documentsCall('list');documentsCache=Array.isArray(data.documents)?data.documents:[];
- const types=[...new Set(documentsCache.map(x=>String(x.document_type||'General')))].sort();
- const select=document.querySelector('#documentsType');select.innerHTML='<option value="">All types</option>'+types.map(t=>'<option value="'+escape(t)+'">'+escape(t)+'</option>').join('');
- document.querySelector('#documentsStats').innerHTML=[['Documents',documentsCache.length,'Account records'],['Available files',documentsCache.filter(x=>x.downloadable).length,'Ready for viewing'],['Document types',types.length,'Available categories']].map(([a,b,c])=>'<div class="dash-kpi"><span>'+escape(a)+'</span><strong>'+escape(b)+'</strong><small>'+escape(c)+'</small></div>').join('');
- document.querySelector('#documentsSearch').oninput=drawDocuments;select.onchange=drawDocuments;content.hidden=false;note.textContent=documentsCache.length?documentsCache.length+' document(s) available':'No documents are available to your account yet.';drawDocuments();
- }catch(e){note.textContent=e.message||'Unable to load documents.'}
+  const data=await documentsCall('list');documentsCache=Array.isArray(data.documents)?data.documents:[];
+  const types=[...new Set(documentsCache.map(x=>String(x.document_type||'General')))].sort();
+  const select=document.querySelector('#documentsType');select.innerHTML='<option value="">All document types</option>'+types.map(t=>'<option value="'+escape(t)+'">'+escape(documentLabel({document_type:t}))+'</option>').join('');
+  const stat=[['My submissions',documentsCache.filter(x=>documentGroup(x)==='submitted').length],['Account documents',documentsCache.filter(x=>documentGroup(x)==='account').length],['How-to guides',documentsCache.filter(x=>documentGroup(x)==='guides').length]];
+  document.querySelector('#documentsStats').innerHTML=stat.map(([label,n])=>'<div class="dash-kpi"><span>'+escape(label)+'</span><strong>'+n+'</strong></div>').join('');
+  document.querySelector('#documentsSearch').oninput=drawDocuments;select.onchange=drawDocuments;
+  document.querySelectorAll('[data-doc-tab]').forEach(btn=>btn.onclick=()=>{documentsTab=btn.dataset.docTab;document.querySelectorAll('[data-doc-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b===btn)));drawDocuments()});
+  const close=()=>closeDocumentPreview();document.querySelector('#documentPreviewClose').onclick=close;document.querySelector('#documentPreviewDone').onclick=close;
+  document.querySelector('#documentPreview').onclose=close;document.querySelector('#documentPreview').onclick=e=>{if(e.target===e.currentTarget)close()};
+  document.querySelector('#documentPreviewDownload').onclick=()=>{if(selectedDocument)handleDocumentAction(selectedDocument,true)};
+  content.hidden=false;note.textContent=documentsCache.length+' Lab Account document(s) available. Your records and guides are private to this account.';drawDocuments();
+ }catch(e){note.textContent=e.message||'Unable to load Lab Account documents.'}
 }
-
 
 const suppliesMarkup=()=>'<div class="supplies-center"><div class="lab-overview-head"><div><h2>Shipping Supplies</h2><p>Request approved testing supplies, check inventory and track shipments.</p></div><button class="signout" id="supplyRefresh" type="button">Refresh</button></div><div class="results-message" id="supplyNotice" role="status">Loading supplies…</div><div id="supplyContent" hidden><div class="dash-kpis" id="supplyStats"></div><section class="dash-card"><h3>House Lab Account setup shipments</h3><p class="dash-note">Shipment details entered by Workforce testing operations are shown here.</p><div id="houseLabShipments"></div></section><div class="dash-columns"><section class="dash-card"><h3>Approved supply catalog</h3><label class="supply-search">Search supplies<input id="supplySearch" type="search" placeholder="Search name or SKU"></label><div id="supplyCatalog"></div><button id="supplyReview" type="button" class="supply-primary">Review supply request</button></section><section class="dash-card"><h3>My current inventory</h3><div id="supplyInventory"></div><p class="dash-note">Supply availability and shipment processing are managed by Workforce testing operations.</p></section></div><section class="dash-card"><div class="lab-overview-head"><div><h3>My orders & shipments</h3><p>Shipment status and tracking details.</p></div><select id="supplyStatus"><option value="">All orders</option><option value="requested">Requested</option><option value="approved">Approved</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select></div><div class="results-table-wrap"><table class="results-table"><thead><tr><th>Submitted</th><th>Items</th><th>Status</th><th>Carrier</th><th>Tracking</th><th>Action</th></tr></thead><tbody id="supplyOrders"></tbody></table></div></section></div></div>';
 let supplyItems=[],supplyOrders=[],supplyInventory=[],houseShipments=[],supplyCart=new Map();
