@@ -16,6 +16,7 @@ Deno.serve(async req=>{
   const verified=await fetch(url+"/functions/v1/lab-account-entitlement",{method:"POST",headers:{authorization:"Bearer "+token,apikey:pub,"Content-Type":"application/json"},body:"{}"});
   const ent=await verified.json().catch(()=>({}));
   if(!verified.ok||ent.authorized!==true)return send({error:"Lab Account access required"},403);
+  if(ent.preview===true)return send({error:"Preview-only Lab Accounts cannot request commercial upgrades"},403);
   const db=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});
   const payload=await req.json().catch(()=>({}));
   const action=String(payload.action||"catalog");
