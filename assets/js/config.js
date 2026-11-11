@@ -5,7 +5,7 @@ if(!base){console.error('Lab Account config missing: load /config.js before /ass
 window.PORTAL_CONFIG=Object.freeze({
  domain:'lab-account.screenings4u.com',
  portalCode:'workforce_lab_account',
- label:'screenings4u Workforce Lab Account',
+ label:'Workforce Lab Account',
  kind:'workforce',
  surface:'workforce',
  workforceUrl:base.supabaseUrl,
