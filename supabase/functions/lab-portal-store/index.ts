@@ -26,29 +26,50 @@ Deno.serve(async req=>{
    db.from("lab_portal_feature_catalog").select("feature_code,title,description,category,delivery_status,display_order").order("display_order"),
    db.from("lab_portal_plan_features").select("plan_sku,feature_code"),
    db.from("lab_portal_store_offers").select("offer_code,title,description,category,price_cents,currency,billing_interval,stripe_price_id,state,feature_code,display_order").neq("state","archived").order("display_order"),
-   db.from("lab_portal_upgrade_paths").select("current_plan_sku,target_plan_sku,offer_title,one_time_price_cents,recurring_price_cents,status").eq("current_plan_sku",plan)
+   db.from("lab_portal_upgrade_paths").select("current_plan_sku,target_plan_sku,offer_title,checkout_service_sku,checkout_enabled,status").eq("current_plan_sku",plan)
   ]);
   for(const q of [f,p,o,u])if(q.error)throw q.error;
   const included=new Set((p.data||[]).filter(x=>x.plan_sku===plan).map(x=>x.feature_code));
-  const safeOffers=(o.data||[]).map(x=>({offer_code:x.offer_code,title:x.title,description:x.description,category:x.category,price_cents:x.price_cents,currency:x.currency,billing_interval:x.billing_interval,state:x.state,feature_code:x.feature_code,ready:x.state==="live"&&!!x.stripe_price_id}));
-  const upgrades=(u.data||[]).map(x=>({...x,ready:x.status==="live"}));
+  const safeOffers=(o.data||[]).filter(x=>plan==="lab-account"||x.offer_code!=="consortium_125").map(x=>({offer_code:x.offer_code,title:x.title,description:x.description,category:x.category,price_cents:x.price_cents,currency:x.currency,billing_interval:x.billing_interval,state:x.state,feature_code:x.feature_code,ready:x.state==="live"&&!!x.stripe_price_id}));
+  const codes=(u.data||[]).map(x=>x.checkout_service_sku).filter(Boolean);
+  const prod=codes.length?await db.from("services").select("id,sku").in("sku",codes).eq("active",true):{data:[],error:null};
+  if(prod.error)throw prod.error;
+  const ids=(prod.data||[]).map(x=>x.id);
+  const price=ids.length?await db.from("service_prices").select("service_id,amount,currency,billing_interval,effective_from,effective_to").in("service_id",ids).eq("active",true).lte("effective_from",new Date().toISOString()).order("effective_from",{ascending:false}):{data:[],error:null};
+  if(price.error)throw price.error;
+  const moneyBySku=new Map((prod.data||[]).map(x=>{const p=(price.data||[]).find(z=>z.service_id===x.id&&(!z.effective_to||new Date(z.effective_to)>new Date()));return [x.sku,p?Math.round(Number(p.amount)*100):null]}));
+  const upgrades=(u.data||[]).map(x=>({current_plan_sku:x.current_plan_sku,target_plan_sku:x.target_plan_sku,offer_title:x.offer_title,price_cents:moneyBySku.get(x.checkout_service_sku)||null,ready:x.checkout_enabled===true&&!!moneyBySku.get(x.checkout_service_sku)}));
   const features=(f.data||[]).map(x=>({...x,included:included.has(x.feature_code),available:included.has(x.feature_code)&&x.delivery_status==="available"}));
   if(action==="catalog"){
-   const own=await db.from("lab_portal_upgrade_requests").select("id,current_plan_sku,target_plan_sku,status,created_at").eq("user_id",user.id).in("status",["requested","quoted","checkout_pending"]).order("created_at",{ascending:false}).limit(25);
+   const own=await db.from("lab_portal_upgrade_requests").select("id,current_plan_sku,target_plan_sku,status,created_at").eq("user_id",user.id).in("status",["checkout_pending"]).order("created_at",{ascending:false}).limit(25);
    if(own.error)throw own.error;
    return send({plan_sku:plan,plan_names:{"lab-account":"Lab Account","lab-account-random-consortium":"Lab Account + Consortium","lab-account-random-consortium-docs":"Lab Account + Consortium + Docs"},plan_feature_codes:Object.fromEntries(SKUS.map(sku=>[sku,(p.data||[]).filter(x=>x.plan_sku===sku).map(x=>x.feature_code)])),features,offers:safeOffers,upgrades,requests:own.data||[],commercial_checkout_enabled:upgrades.some(x=>x.ready)||safeOffers.some(x=>x.ready)});
   }
-  if(action==="request_upgrade"){
+  if(action==="begin_checkout"){
    const target=String(payload.target_plan_sku||"");
    if(!SKUS.includes(target)||SKUS.indexOf(target)<=SKUS.indexOf(plan))return send({error:"Select a higher eligible plan"},400);
-   const path=upgrades.find(x=>x.target_plan_sku===target);
-   if(!path)return send({error:"Upgrade path is unavailable"},400);
-   const pending=await db.from("lab_portal_upgrade_requests").select("id,status").eq("user_id",user.id).eq("target_plan_sku",target).in("status",["requested","quoted","checkout_pending"]).limit(1);
+   const path=(u.data||[]).find(x=>x.target_plan_sku===target&&x.current_plan_sku===plan);
+   if(!path?.checkout_enabled||!path.checkout_service_sku||!moneyBySku.get(path.checkout_service_sku))return send({error:"This plan upgrade is not yet available for checkout"},409);
+   const completed=await db.from("lab_portal_upgrade_requests").select("id").eq("user_id",user.id).eq("target_plan_sku",target).eq("status","completed").limit(1);
+   if(completed.error)throw completed.error;
+   if(completed.data?.length)return send({error:"This upgrade is already purchased"},409);
+   const pending=await db.from("lab_portal_upgrade_requests").select("id,order_id,checkout_expires_at").eq("user_id",user.id).eq("target_plan_sku",target).eq("status","checkout_pending").order("created_at",{ascending:false}).limit(1);
    if(pending.error)throw pending.error;
-   if(pending.data?.length)return send({ok:true,already_requested:true,status:pending.data[0].status});
-   const insert=await db.from("lab_portal_upgrade_requests").insert({user_id:user.id,current_plan_sku:plan,target_plan_sku:target,status:"requested"}).select("id,status").single();
-   if(insert.error)throw insert.error;
-   return send({ok:true,status:insert.data.status});
+   if(pending.data?.[0]?.order_id)return send({error:"Payment for this upgrade has already started. Check the receipt or payment status before trying again."},409);
+   const random=Array.from(crypto.getRandomValues(new Uint8Array(32))).map(v=>v.toString(16).padStart(2,"0")).join("");
+   const hash=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(random)))).map(v=>v.toString(16).padStart(2,"0")).join("");
+   const expiry=new Date(Date.now()+30*60*1000).toISOString();
+   let write:any;
+   if(pending.data?.length){
+    write=await db.from("lab_portal_upgrade_requests").update({current_plan_sku:plan,checkout_token_hash:hash,checkout_expires_at:expiry,updated_at:new Date().toISOString()}).eq("id",pending.data[0].id).eq("status","checkout_pending").is("order_id",null);
+   }else{
+    write=await db.from("lab_portal_upgrade_requests").insert({user_id:user.id,current_plan_sku:plan,target_plan_sku:target,status:"checkout_pending",checkout_token_hash:hash,checkout_expires_at:expiry});
+   }
+   if(write.error)throw write.error;
+   const url=new URL("https://screenings4u.com/checkout.html");
+   url.searchParams.set("service",path.checkout_service_sku);
+   url.searchParams.set("upgrade_token",random);
+   return send({ok:true,checkout_url:url.toString(),price_cents:moneyBySku.get(path.checkout_service_sku),status:"checkout_pending"});
   }
   return send({error:"Unsupported action"},400);
  }catch(e){console.error("lab-portal-store",e);return send({error:"Unable to load the Lab Account store"},500)}
