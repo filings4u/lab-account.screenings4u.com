@@ -17,6 +17,10 @@ Deno.serve(async(req:Request)=>{
  const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
  const grant=await db.from("testing_customer_portal_access").select("status,metadata").eq("user_id",user.id).maybeSingle();
  if(grant.error)throw grant.error;
+ // Explicit, customer-scoped evaluation grant. Not a paid purchase and never a staff role.
+ // Only the named user with active customer access receives feature testing.
+ if(user.id==="fc427ef7-16fa-4e36-a1ba-4e760035b32f"&&grant.data?.status==="active"&&grant.data?.metadata?.lab_account_customer_test_access===true)
+   return output({authorized:true,plan:"lab-account-random-consortium-docs",features:{lab_account:true,workflow_test:false,consortium:true,consortium_addon_active:false,compliance_docs:true},preview:false,customer_test_access:true,order_history:[]});
  if(grant.data?.status==="active"&&grant.data?.metadata?.lab_account_customer_preview===true)
    return output({authorized:true,plan:"lab-account",features:{lab_account:true,workflow_test:true,consortium:false,compliance_docs:false},preview:true,order_history:[]});
  const q=await db.from("orders").select("id,order_number,paid_at,payment_status,user_id,customer_email").or("user_id.eq."+user.id+",customer_email.eq."+user.email!.toLowerCase()).order("created_at",{ascending:false}).limit(100);
