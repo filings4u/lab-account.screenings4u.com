@@ -1,4 +1,4 @@
-(()=>{'use strict';const cfg=window.S4U_ACCESS_CONFIG;const main=document.querySelector('#main');const names={'dashboard':'Dashboard','lab-accounts':'Lab Accounts','results':'Results','billing':'Billing','documents':'Documents','supplies':'Supplies','testing-order':'Testing Orders','order-history':'Order History','create-testing-order':'Create Testing Order','specimen-shipment':'Send Collected Tests','support':'Support','store':'Store & Upgrades'};const routes=Object.entries(names).map(([key,label])=>({key,label,url:'/'+key+'.html'}));let current=(document.body.dataset.portalPage||'dashboard');let activeUser=null,activeIntake=null;const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const dashboardMarkup=intake=>{
+(()=>{'use strict';const cfg=window.S4U_ACCESS_CONFIG;const main=document.querySelector('#main');const names={'dashboard':'Dashboard','lab-accounts':'Lab Accounts','results':'Results','billing':'Billing','documents':'Documents','supplies':'Supplies','testing-order':'Testing Orders','order-history':'Order History','create-testing-order':'Create Testing Order','specimen-shipment':'Send Collected Tests','support':'Support','consortium':'Consortium','compliance-center':'Compliance Center','store':'Store & Upgrades'};const routes=Object.entries(names).map(([key,label])=>({key,label,url:'/'+key+'.html'}));let current=(document.body.dataset.portalPage||'dashboard');let activeUser=null,activeIntake=null,activeEntitlement=null;const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const dashboardMarkup=intake=>{
  const state=String(intake?.status||'submitted').toLowerCase(),done=['completed','complete','active','approved'].includes(state),label=done?'Setup completed':state==='submitted'?'Intake received':state==='pending'?'Pending review':state.replaceAll('_',' ');
  const date=intake?.submittedAt?new Date(intake.submittedAt).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):'Not available';
  const tools=[['Lab Accounts','lab-accounts','Account information'],['Testing Orders','testing-order','Manage testing orders'],['Results','results','Laboratory results'],['Billing','billing','Billing and invoices'],['Documents','documents','Business documents'],['Supplies','supplies','Testing materials'],['Order History','order-history','Past testing orders'],['Store & Upgrades','store','View packages and add-on services']];
@@ -475,13 +475,119 @@ async function initLabStore(){
  }catch(e){notice.textContent=e.message||'The store is temporarily unavailable.'}
 }
 
+const PREMIUM_SERVICES={
+ consortium:{
+  heading:'Consortium Services',
+  intro:'Submit pool enrollment requests, request changes to participants, schedule random-selection services, and request participation certificates. Workforce testing staff perform required operations in the testing system.',
+  types:[
+   ['consortium_enrollment','Consortium enrollment','Request enrollment for a DOT or NON-DOT pool.'],
+   ['consortium_participant_add','Add a participant','Request an eligible participant to be added to a managed pool.'],
+   ['consortium_participant_remove','Remove a participant','Request a participant to be removed from a managed pool.'],
+   ['consortium_selection_schedule','Random testing schedule','Request the next selection period from your testing administrator.'],
+   ['consortium_certificate','Enrollment certificate','Request documentation of verified participation.']
+  ]
+ },
+ 'compliance-center':{
+  heading:'Compliance Document Services',
+  intro:'Request your purchased compliance document services. Official documents, completed setup work and audit packages are issued by authorized testing staff and made available for secure download.',
+  types:[
+   ['compliance_document','Compliance document','Request a specific compliance document or agreement.'],
+   ['clearinghouse_setup','Clearinghouse setup assistance','Request staff assistance with account and designation requirements.'],
+   ['client_document_template','Client document template','Request a business document template.'],
+   ['audit_readiness_export','Audit readiness package','Request preparation of an audit document package.']
+  ]
+ }
+};
+const premiumFields={
+ company_name:'Company or employer name',program_type:'Testing program (DOT or NON-DOT)',
+ dot_agency:'DOT agency (if applicable)',desired_start:'Requested start date',notes:'Additional details',
+ participant_name:'Participant full name',effective_date:'Effective date',
+ reason:'Reason for change',requested_period:'Selection period',certificate_period:'Certificate period',
+ document_type:'Document type',contact_email:'Contact email',dot_number:'USDOT number (if applicable)',
+ template_type:'Template type',audit_period:'Audit period'
+};
+const premiumMarkup=()=>{
+ const config=PREMIUM_SERVICES[current];
+ const allowed=activeEntitlement?.features?.[current==='consortium'?'consortium':'compliance_docs']===true;
+ if(!allowed)return '<div class="premium-locked"><h2>'+escape(config.heading)+'</h2><p>This feature is available to customers with the corresponding purchased plan or active consortium add-on. Your existing Lab Account services remain accessible.</p><a class="dash-action" href="/store.html">View eligible plan upgrades</a></div>';
+ return '<div class="premium-workspace"><div class="lab-overview-head"><div><h2>'+escape(config.heading)+'</h2><p>'+escape(config.intro)+'</p></div><a class="dash-action" href="/store.html">My plan</a></div><div class="premium-layout"><section class="dash-card"><h3>Request a service</h3><div class="premium-service-grid">'+config.types.map((x,i)=>'<button type="button" class="premium-service-choice" data-premium-type="'+escape(x[0])+'" aria-pressed="'+(i===0?'true':'false')+'"><strong>'+escape(x[1])+'</strong><span>'+escape(x[2])+'</span></button>').join('')+'</div><form id="premiumRequestForm"><h4 id="premiumFormHeading">Service details</h4><div id="premiumFormFields"></div><button type="submit" class="dash-action">Submit service request</button></form><p class="results-message" id="premiumNotice" role="status"></p></section><section class="dash-card"><div class="lab-overview-head"><div><h3>My service requests</h3><p>Track fulfillment and retrieve issued documents.</p></div><button type="button" id="premiumRefresh" class="signout">Refresh</button></div><div id="premiumHistory">Loading authorized records…</div></section></div></div>';
+};
+async function initPremiumServices(){
+ const config=PREMIUM_SERVICES[current];if(!config||activeEntitlement?.features?.[current==='consortium'?'consortium':'compliance_docs']!==true)return;
+ const root=document.querySelector('.premium-workspace');if(!root)return;
+ const notice=root.querySelector('#premiumNotice'),fields=root.querySelector('#premiumFormFields'),history=root.querySelector('#premiumHistory');
+ const serviceMap=new Map(config.types.map(x=>[x[0],x]));
+ let active=config.types[0][0],nonce=0;
+ const request=async body=>{
+  const {data:{session}}=await window.labAccountClient.auth.getSession();
+  if(!session)throw Error('Your session expired. Sign in again.');
+  const r=await fetch(cfg.supabaseUrl+'/functions/v1/lab-plan-services',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',apikey:cfg.supabasePublishableKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify(body)});
+  const d=await r.json().catch(()=>({}));if(!r.ok||d.error)throw Error(d.error||'Service request unavailable');return d;
+ };
+ const fieldMap={
+  consortium_enrollment:['company_name','program_type','dot_agency','desired_start','notes'],
+  consortium_participant_add:['participant_name','company_name','program_type','effective_date','notes'],
+  consortium_participant_remove:['participant_name','company_name','effective_date','reason'],
+  consortium_selection_schedule:['company_name','program_type','requested_period','notes'],
+  consortium_certificate:['company_name','certificate_period','notes'],
+  compliance_document:['document_type','company_name','notes'],
+  clearinghouse_setup:['company_name','dot_number','contact_email','notes'],
+  client_document_template:['template_type','company_name','notes'],
+  audit_readiness_export:['company_name','audit_period','notes']
+ };
+ const drawForm=()=>{
+  fields.replaceChildren();root.querySelector('#premiumFormHeading').textContent=serviceMap.get(active)[1];
+  for(const key of fieldMap[active]||[]){
+   const label=document.createElement('label');label.className='premium-form-field';label.textContent=premiumFields[key]||key;
+   const el=key==='notes'?document.createElement('textarea'):document.createElement('input');
+   el.name=key;el.maxLength=key==='notes'?1200:180;el.required=key==='company_name'||key==='participant_name'||key==='document_type'||key==='template_type'||key==='requested_period';
+   el.autocomplete='off';if(el.tagName==='INPUT'){el.type=key==='contact_email'?'email':key==='desired_start'||key==='effective_date'?'date':'text'}
+   label.append(el);fields.append(label);
+  }
+  root.querySelectorAll('[data-premium-type]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.premiumType===active)));
+ };
+ const refresh=async()=>{
+  const n=++nonce;history.textContent='Loading your requests…';
+  try{
+   const data=await request({action:'list'});if(n!==nonce)return;
+   const codes=new Set(config.types.map(x=>x[0]));
+   const rows=(data.requests||[]).filter(x=>codes.has(x.feature_code));
+   if(!rows.length){history.innerHTML='<p class="dash-note">You have not submitted any requests in this category.</p>';return}
+   history.replaceChildren();
+   for(const x of rows){
+    const card=document.createElement('article');card.className='premium-request';
+    const title=document.createElement('strong');title.textContent=x.title;card.append(title);
+    const p=document.createElement('p');p.textContent=(x.status||'submitted').replaceAll('_',' ')+' · '+new Date(x.created_at).toLocaleDateString();card.append(p);
+    if(x.staff_notes){const n=document.createElement('p');n.textContent='Update: '+x.staff_notes;card.append(n)}
+    if(x.status==='completed'&&x.document_name){
+     const button=document.createElement('button');button.type='button';button.className='signout';button.textContent='Download '+x.document_name;
+     button.onclick=async()=>{button.disabled=true;try{const d=await request({action:'download',id:x.id});if(!d.download_url)throw Error('Document unavailable');window.location.assign(d.download_url)}catch(e){notice.textContent=e.message||'Download unavailable'}finally{button.disabled=false}};
+     card.append(button);
+    }history.append(card);
+   }
+  }catch(e){history.textContent=e.message||'Cannot load requests'}
+ };
+ root.querySelectorAll('[data-premium-type]').forEach(b=>b.onclick=()=>{active=b.dataset.premiumType;drawForm()});
+ root.querySelector('#premiumRefresh').onclick=refresh;
+ root.querySelector('#premiumRequestForm').onsubmit=async e=>{
+  e.preventDefault();const form=e.currentTarget,button=form.querySelector('[type="submit"]');button.disabled=true;notice.textContent='Submitting securely…';
+  try{
+   const details=Object.fromEntries(new FormData(form).entries());
+   await request({action:'create',feature_code:active,title:serviceMap.get(active)[1],details});
+   form.reset();notice.textContent='Your service request was submitted to the testing team.';await refresh();
+  }catch(e){notice.textContent=e.message||'Unable to submit request'}finally{button.disabled=false}
+ };
+ drawForm();await refresh();
+}
+
 const render=(user,intake={})=>{
  document.body.classList.remove('loading');document.documentElement.classList.remove('s4u-auth-pending');
  const page=names[current]||'Workforce';
  const icons={'dashboard':'⌂','lab-accounts':'⌬','results':'✓','billing':'$','documents':'▤','supplies':'▣','testing-order':'◆','order-history':'≡','store':'▦'};
- const links=routes.map(r=>'<a href="'+r.url+'"'+(r.key===current?' class="active" aria-current="page"':'')+'><span class="ico">'+(icons[r.key]||'•')+'</span><span>'+escape(r.label)+'</span></a>').join('');
- document.querySelector('#workspace').innerHTML='<div class="app"><aside class="side" id="side"><div class="brand"><img src="https://workforce.screenings4u.com/images/logo2.png" alt="Workforce"></div><nav class="nav" aria-label="Workforce navigation"><div class="nav-title">Workforce · Lab Account</div>'+links+'</nav><div class="side-foot"><small>Portal</small><strong>Workforce Lab Account</strong></div></aside><div class="main"><header class="top"><div class="top-left"><button type="button" class="menu" id="menu" aria-label="Open navigation" aria-controls="mobileNav" aria-expanded="false">☰</button><div class="top-context"><span class="top-eyebrow">Workforce · Lab Account</span><span class="crumb">'+escape(page)+'</span></div></div><div class="top-right"><div class="portal-clock"><span id="portalClockDate"></span><strong id="portalClockTime"></strong></div><div class="top-utility-group"><span class="top-utility-label">Text size</span><div class="font-sizer"><button id="fontDown" type="button" aria-label="Decrease text size">A−</button><button class="font-reset" id="fontSizeValue" type="button" aria-label="Reset text size">Default</button><button id="fontUp" type="button" aria-label="Increase text size">A+</button></div></div><span class="pill">Workforce</span><a href="https://workforceapps.screenings4u.com/selector.html" class="switch-portal">↔ Switch Portal</a><button id="logout" class="signout" type="button">Sign out</button></div></header><section class="mobile-nav" id="mobileNav" aria-hidden="true"><nav class="mobile-nav-links" aria-label="Mobile Workforce navigation">'+links+'</nav></section><div class="content"><section class="hero"><span class="hero-kicker">Workforce · Lab Account</span><h1>'+escape(page)+'</h1><p>Manage your Lab Account workspace securely.</p></section><section class="section"><div class="panel"><div class="panel-head"><h2>'+escape(page)+'</h2></div><div class="panel-body">'+(current==='donor-pass-view'?donorPassMarkup():current==='supply-request'?supplyRequestMarkup():current==='support-ticket'?supportTicketMarkup():current==='testing-order-edit'?testingOrderEditMarkup():detailSpec[current]?detailMarkup():current==='dashboard'?dashboardMarkup(intake):current==='lab-accounts'?labAccountsMarkup():current==='results'?resultsMarkup():current==='billing'?billingMarkup():current==='documents'?documentsMarkup():current==='supplies'?suppliesMarkup():current==='testing-order'?testingOrdersMarkup():current==='specimen-shipment'?specimenShipmentMarkup():current==='order-history'?orderHistoryMarkup():current==='create-testing-order'?newTestingOrderMarkup():current==='support'?supportMarkup():current==='store'?storeMarkup():'<p>This section is ready for account-specific data and workflows.</p><a href="/dashboard.html">Return to dashboard</a>')+'</div></div></section></div></div></div>';
- if(current==='donor-pass-view')initDonorPass();if(current==='supply-request')initSupplyRequest();if(current==='support-ticket')initSupportTicket();if(current==='testing-order-edit')initTestingOrderEdit();if(detailSpec[current])loadRecordDetail();if(current==='store')initLabStore();if(current==='dashboard')initDashboardPlan();if(current==='lab-accounts')loadLabAccounts();if(current==='support')initSupport();if(current==='create-testing-order')initNewTestingOrder();if(current==='order-history'){loadOrderHistory();document.querySelector('#refreshOrderHistory')?.addEventListener('click',loadOrderHistory)}if(current==='specimen-shipment')initSpecimenShipment();if(current==='testing-order'){loadTestingOrders();document.querySelector('#refreshTestingOrders')?.addEventListener('click',loadTestingOrders)}if(current==='supplies')initSupplies();if(current==='documents'){loadDocuments();document.querySelector('#refreshDocuments')?.addEventListener('click',loadDocuments)}if(current==='billing'){loadBilling();document.querySelector('#refreshBilling')?.addEventListener('click',loadBilling)}if(current==='results'){loadResults();document.querySelector('#refreshResults')?.addEventListener('click',loadResults)}
+ const permittedRoutes=routes.filter(r=>r.key!=='consortium'&&r.key!=='compliance-center'||activeEntitlement?.features?.[r.key==='consortium'?'consortium':'compliance_docs']===true);
+ const links=permittedRoutes.map(r=>'<a href="'+r.url+'"'+(r.key===current?' class="active" aria-current="page"':'')+'><span class="ico">'+(icons[r.key]||'•')+'</span><span>'+escape(r.label)+'</span></a>').join('');
+ document.querySelector('#workspace').innerHTML='<div class="app"><aside class="side" id="side"><div class="brand"><img src="https://workforce.screenings4u.com/images/logo2.png" alt="Workforce"></div><nav class="nav" aria-label="Workforce navigation"><div class="nav-title">Workforce · Lab Account</div>'+links+'</nav><div class="side-foot"><small>Portal</small><strong>Workforce Lab Account</strong></div></aside><div class="main"><header class="top"><div class="top-left"><button type="button" class="menu" id="menu" aria-label="Open navigation" aria-controls="mobileNav" aria-expanded="false">☰</button><div class="top-context"><span class="top-eyebrow">Workforce · Lab Account</span><span class="crumb">'+escape(page)+'</span></div></div><div class="top-right"><div class="portal-clock"><span id="portalClockDate"></span><strong id="portalClockTime"></strong></div><div class="top-utility-group"><span class="top-utility-label">Text size</span><div class="font-sizer"><button id="fontDown" type="button" aria-label="Decrease text size">A−</button><button class="font-reset" id="fontSizeValue" type="button" aria-label="Reset text size">Default</button><button id="fontUp" type="button" aria-label="Increase text size">A+</button></div></div><span class="pill">Workforce</span><a href="https://workforceapps.screenings4u.com/selector.html" class="switch-portal">↔ Switch Portal</a><button id="logout" class="signout" type="button">Sign out</button></div></header><section class="mobile-nav" id="mobileNav" aria-hidden="true"><nav class="mobile-nav-links" aria-label="Mobile Workforce navigation">'+links+'</nav></section><div class="content"><section class="hero"><span class="hero-kicker">Workforce · Lab Account</span><h1>'+escape(page)+'</h1><p>Manage your Lab Account workspace securely.</p></section><section class="section"><div class="panel"><div class="panel-head"><h2>'+escape(page)+'</h2></div><div class="panel-body">'+(current==='donor-pass-view'?donorPassMarkup():current==='supply-request'?supplyRequestMarkup():current==='support-ticket'?supportTicketMarkup():current==='testing-order-edit'?testingOrderEditMarkup():detailSpec[current]?detailMarkup():current==='dashboard'?dashboardMarkup(intake):current==='lab-accounts'?labAccountsMarkup():current==='results'?resultsMarkup():current==='billing'?billingMarkup():current==='documents'?documentsMarkup():current==='supplies'?suppliesMarkup():current==='testing-order'?testingOrdersMarkup():current==='specimen-shipment'?specimenShipmentMarkup():current==='order-history'?orderHistoryMarkup():current==='create-testing-order'?newTestingOrderMarkup():current==='support'?supportMarkup():current==='store'?storeMarkup():PREMIUM_SERVICES[current]?premiumMarkup():'<p>This section is ready for account-specific data and workflows.</p><a href="/dashboard.html">Return to dashboard</a>')+'</div></div></section></div></div></div>';
+ if(current==='donor-pass-view')initDonorPass();if(current==='supply-request')initSupplyRequest();if(current==='support-ticket')initSupportTicket();if(current==='testing-order-edit')initTestingOrderEdit();if(detailSpec[current])loadRecordDetail();if(current==='store')initLabStore();if(PREMIUM_SERVICES[current])initPremiumServices();if(current==='dashboard')initDashboardPlan();if(current==='lab-accounts')loadLabAccounts();if(current==='support')initSupport();if(current==='create-testing-order')initNewTestingOrder();if(current==='order-history'){loadOrderHistory();document.querySelector('#refreshOrderHistory')?.addEventListener('click',loadOrderHistory)}if(current==='specimen-shipment')initSpecimenShipment();if(current==='testing-order'){loadTestingOrders();document.querySelector('#refreshTestingOrders')?.addEventListener('click',loadTestingOrders)}if(current==='supplies')initSupplies();if(current==='documents'){loadDocuments();document.querySelector('#refreshDocuments')?.addEventListener('click',loadDocuments)}if(current==='billing'){loadBilling();document.querySelector('#refreshBilling')?.addEventListener('click',loadBilling)}if(current==='results'){loadResults();document.querySelector('#refreshResults')?.addEventListener('click',loadResults)}
  const logout=document.querySelector('#logout');logout.addEventListener('click',async()=>{await window.labAccountClient.auth.signOut({scope:'local'});location.replace('https://workforceapps.screenings4u.com/')});
  const menu=document.querySelector('#menu'),mobile=document.querySelector('#mobileNav');const close=()=>{mobile.classList.remove('open');menu.setAttribute('aria-expanded','false');mobile.setAttribute('aria-hidden','true')};menu.addEventListener('click',()=>{const open=mobile.classList.toggle('open');menu.setAttribute('aria-expanded',String(open));mobile.setAttribute('aria-hidden',String(!open))});mobile.addEventListener('click',e=>{if(e.target.closest('a'))close()});document.onkeydown=e=>{if(e.key==='Escape')close()};window.onresize=()=>{if(window.innerWidth>820)close()};
  const key='s4u_lab_account_font_size';const setFont=n=>{const v=Math.min(18,Math.max(12,n));document.documentElement.style.setProperty('--portal-font-root',v+'px');try{localStorage.setItem(key,String(v))}catch{}document.querySelector('#fontSizeValue').textContent=v===14?'Default':String(v);return v};let font=14;try{font=Number(localStorage.getItem(key))||14}catch{}font=setFont(font);document.querySelector('#fontDown').onclick=()=>{font=setFont(font-1)};document.querySelector('#fontUp').onclick=()=>{font=setFont(font+1)};document.querySelector('#fontSizeValue').onclick=()=>{font=setFont(14)};
@@ -513,4 +619,4 @@ const [entitlement,intake]=await Promise.all([entitlementResponse.json().catch((
 if(!entitlementResponse.ok||entitlement.authorized!==true)throw Error('Your Lab Account access could not be verified. Return to the selector or contact support.');
 if(!intakeResponse.ok)throw Error('Unable to check Lab Account intake status. Please try again.');
 if(intake.intakeSubmitted!==true){location.replace('/lab-account-intake.html');return}
-activeUser=user;activeIntake=intake;render(user,intake)}catch(e){document.body.classList.remove('loading');document.documentElement.classList.remove('s4u-auth-pending');document.querySelector('#workspace').innerHTML='<main class="workforce-error"><h1>Lab Account access unavailable</h1><p>'+escape(e.message||'Unable to open this workspace.')+'</p><a href="https://workforceapps.screenings4u.com/selector.html">Return to Workforce portal selector</a></main>'}}boot()})();
+activeUser=user;activeIntake=intake;activeEntitlement=entitlement;render(user,intake)}catch(e){document.body.classList.remove('loading');document.documentElement.classList.remove('s4u-auth-pending');document.querySelector('#workspace').innerHTML='<main class="workforce-error"><h1>Lab Account access unavailable</h1><p>'+escape(e.message||'Unable to open this workspace.')+'</p><a href="https://workforceapps.screenings4u.com/selector.html">Return to Workforce portal selector</a></main>'}}boot()})();
