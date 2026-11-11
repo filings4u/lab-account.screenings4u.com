@@ -318,3 +318,9 @@ body[data-portal-page="support"] .results-table{min-width:900px}
 .premium-locked p{color:#65718a;line-height:1.65}
 @media(max-width:950px){.premium-layout{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:580px){.premium-service-grid{grid-template-columns:1fr}.premium-workspace .dash-card{padding:15px}}
+
+/* Existing authorized pool readouts; no synthetic counts or identifiers. */
+.premium-pool-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:13px}
+.premium-pool{border:1px solid #dce5ed;background:#f9fbfd;border-radius:12px;padding:16px}
+.premium-pool strong{display:block;color:#01122F;font-size:15px;margin-bottom:9px}
+.premium-pool p{color:#53647b;font-size:12px;margin:6px 0;line-height:1.6}
