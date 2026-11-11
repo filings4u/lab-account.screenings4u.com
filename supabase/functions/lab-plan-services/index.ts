@@ -31,6 +31,27 @@ Deno.serve(async(req)=>{
  const db=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
  const body=await req.json().catch(()=>({}));
  const action=String(body.action||"list");
+ if(action==="overview"){
+  if(!permissions.consortium)return out({error:"Consortium access is not included in your paid plan"},403);
+  const org=await db.from("organization_memberships").select("organization_id").eq("user_id",user.id).eq("status","active").limit(100);
+  if(org.error)throw org.error;
+  const orgIds=[...new Set((org.data||[]).map((x:any)=>x.organization_id).filter(Boolean))];
+  if(!orgIds.length)return out({pools:[],status:"awaiting_provisioning"});
+  const ctpas=await db.from("ctpas").select("id,tenant_id").in("organization_id",orgIds).limit(100);
+  if(ctpas.error)throw ctpas.error;
+  const ctpaIds=(ctpas.data||[]).map((x:any)=>x.id);
+  if(!ctpaIds.length)return out({pools:[],status:"awaiting_provisioning"});
+  const pools=await db.from("random_pools").select("id,name,program_type,pool_type,dot_agency,selection_schedule,status,effective_date,tenant_id,ctpa_id").in("ctpa_id",ctpaIds).order("created_at",{ascending:false}).limit(100);
+  if(pools.error)throw pools.error;
+  const permittedTenants=new Map((ctpas.data||[]).map((x:any)=>[x.id,x.tenant_id]));
+  const own=(pools.data||[]).filter((x:any)=>permittedTenants.get(x.ctpa_id)===x.tenant_id);
+  const ids=own.map((x:any)=>x.id);
+  const members=ids.length?await db.from("pool_memberships").select("pool_id,tenant_id,removed_at,eligibility_status").in("pool_id",ids).is("removed_at",null).limit(4000):{data:[],error:null};
+  if(members.error)throw members.error;
+  const count=new Map<string,number>();
+  for(const x of members.data||[]){if(own.some((p:any)=>p.id===x.pool_id&&p.tenant_id===x.tenant_id)&&String(x.eligibility_status).toLowerCase()!=="ineligible")count.set(x.pool_id,(count.get(x.pool_id)||0)+1)}
+  return out({pools:own.map((x:any)=>({name:x.name,program_type:x.program_type,pool_type:x.pool_type,dot_agency:x.dot_agency,selection_schedule:x.selection_schedule,status:x.status,effective_date:x.effective_date,active_participant_count:count.get(x.id)||0})),status:own.length?"provisioned":"awaiting_provisioning"});
+ }
  if(action==="list"){
   const result=await db.from("lab_plan_service_requests").select("id,feature_code,request_type,title,details,status,staff_notes,document_name,created_at,updated_at,fulfilled_at").eq("customer_user_id",user.id).order("created_at",{ascending:false}).limit(200);
   if(result.error)throw result.error;
