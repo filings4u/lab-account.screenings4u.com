@@ -510,7 +510,7 @@ const premiumMarkup=()=>{
  const config=PREMIUM_SERVICES[current];
  const allowed=activeEntitlement?.features?.[current==='consortium'?'consortium':'compliance_docs']===true;
  if(!allowed)return '<div class="premium-locked"><h2>'+escape(config.heading)+'</h2><p>This feature is available to customers with the corresponding purchased plan or active consortium add-on. Your existing Lab Account services remain accessible.</p><a class="dash-action" href="/store.html">View eligible plan upgrades</a></div>';
- return '<div class="premium-workspace"><div class="lab-overview-head"><div><h2>'+escape(config.heading)+'</h2><p>'+escape(config.intro)+'</p></div><a class="dash-action" href="/store.html">My plan</a></div><div class="premium-layout"><section class="dash-card"><h3>Request a service</h3><div class="premium-service-grid">'+config.types.map((x,i)=>'<button type="button" class="premium-service-choice" data-premium-type="'+escape(x[0])+'" aria-pressed="'+(i===0?'true':'false')+'"><strong>'+escape(x[1])+'</strong><span>'+escape(x[2])+'</span></button>').join('')+'</div><form id="premiumRequestForm"><h4 id="premiumFormHeading">Service details</h4><div id="premiumFormFields"></div><button type="submit" class="dash-action">Submit service request</button></form><p class="results-message" id="premiumNotice" role="status"></p></section><section class="dash-card"><div class="lab-overview-head"><div><h3>My service requests</h3><p>Track fulfillment and retrieve issued documents.</p></div><button type="button" id="premiumRefresh" class="signout">Refresh</button></div><div id="premiumHistory">Loading authorized records…</div></section></div></div>';
+ return '<div class="premium-workspace"><div class="lab-overview-head"><div><h2>'+escape(config.heading)+'</h2><p>'+escape(config.intro)+'</p></div><a class="dash-action" href="/store.html">My plan</a></div>'+(current==='consortium'?'<section class="dash-card" id="premiumPoolOverview" style="margin-top:18px"><h3>Managed consortium pools</h3><p>Loading your authorized pool information…</p></section>':'')+'<div class="premium-layout"><section class="dash-card"><h3>Request a service</h3><div class="premium-service-grid">'+config.types.map((x,i)=>'<button type="button" class="premium-service-choice" data-premium-type="'+escape(x[0])+'" aria-pressed="'+(i===0?'true':'false')+'"><strong>'+escape(x[1])+'</strong><span>'+escape(x[2])+'</span></button>').join('')+'</div><form id="premiumRequestForm"><h4 id="premiumFormHeading">Service details</h4><div id="premiumFormFields"></div><button type="submit" class="dash-action">Submit service request</button></form><p class="results-message" id="premiumNotice" role="status"></p></section><section class="dash-card"><div class="lab-overview-head"><div><h3>My service requests</h3><p>Track fulfillment and retrieve issued documents.</p></div><button type="button" id="premiumRefresh" class="signout">Refresh</button></div><div id="premiumHistory">Loading authorized records…</div></section></div></div>';
 };
 async function initPremiumServices(){
  const config=PREMIUM_SERVICES[current];if(!config||activeEntitlement?.features?.[current==='consortium'?'consortium':'compliance_docs']!==true)return;
@@ -524,6 +524,25 @@ async function initPremiumServices(){
   const r=await fetch(cfg.supabaseUrl+'/functions/v1/lab-plan-services',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',apikey:cfg.supabasePublishableKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify(body)});
   const d=await r.json().catch(()=>({}));if(!r.ok||d.error)throw Error(d.error||'Service request unavailable');return d;
  };
+ if(current==='consortium'){
+  const poolRoot=root.querySelector('#premiumPoolOverview');
+  if(poolRoot){
+   request({action:'overview'}).then(d=>{
+    if(!poolRoot.isConnected)return;
+    poolRoot.replaceChildren();
+    const title=document.createElement('h3');title.textContent='Managed consortium pools';poolRoot.append(title);
+    if(!Array.isArray(d.pools)||!d.pools.length){const p=document.createElement('p');p.className='dash-note';p.textContent='No managed pool has been assigned to your organization yet. Use the enrollment request below to contact testing operations.';poolRoot.append(p);return}
+    const wrap=document.createElement('div');wrap.className='premium-pool-grid';
+    for(const x of d.pools){
+      const card=document.createElement('article');card.className='premium-pool';
+      const heading=document.createElement('strong');heading.textContent=x.name||'Consortium pool';card.append(heading);
+      const items=[['Program',x.program_type||x.pool_type||'—'],['Status',x.status||'Pending'],['Agency',x.dot_agency||'Not applicable'],['Selection schedule',x.selection_schedule||'Not scheduled'],['Active participants',String(x.active_participant_count??0)]];
+      for(const [label,value] of items){const p=document.createElement('p');p.textContent=label+': '+value;card.append(p)}
+      wrap.append(card);
+    }poolRoot.append(wrap);
+   }).catch(e=>{poolRoot.querySelector('p').textContent=e.message||'Pool information is unavailable.'});
+  }
+ }
  const fieldMap={
   consortium_enrollment:['company_name','program_type','dot_agency','desired_start','notes'],
   consortium_participant_add:['participant_name','company_name','program_type','effective_date','notes'],
