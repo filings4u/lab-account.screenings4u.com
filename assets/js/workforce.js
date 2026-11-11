@@ -396,7 +396,25 @@ async function initLabStore(){
   features.innerHTML='<h3>Your plan includes</h3><div class="lab-store-feature-grid">'+visible.map(x=>'<div class="lab-store-feature"><span class="lab-store-feature-icon">'+(x.available?'✓':'◷')+'</span><div><strong>'+escape(x.title)+'</strong><p>'+escape(x.description)+'</p><small>'+(x.available?'Included in your plan':'Planned feature — not yet available')+'</small></div></div>').join('')+'</div>';
   const list=d.offers||[];
   const includedCodes=new Set((d.features||[]).filter(x=>x.included).map(x=>x.feature_code));
-  offers.innerHTML='<h3>Additional services</h3><p class="lab-store-explainer">Add-on purchases require a verified payment price and active billing integration. Features already included in your plan will not be offered as duplicate purchases.</p><div class="lab-store-offer-grid">'+list.map(x=>'<article class="lab-store-offer"><small>'+escape(x.category)+'</small><h4>'+escape(x.title)+'</h4><p>'+escape(x.description)+'</p><strong>'+(x.price_cents!==null&&x.price_cents!==undefined?'Proposed '+(Number(x.price_cents)/100).toLocaleString('en-US',{style:'currency',currency:x.currency||'USD'})+(x.billing_interval==='month'?'/month':''):'Pricing to be confirmed')+'</strong><span class="lab-store-state">'+(includedCodes.has(x.feature_code)?'Included with your plan':x.offer_code==='consortium_125'&&x.ready?'Available for subscription':x.ready?'Billing setup pending':'Coming soon')+'</span>'+(x.offer_code==='consortium_125'&&x.ready&&!includedCodes.has(x.feature_code)?'<button type="button" class="lab-store-upgrade" data-buy-addon="'+escape(x.offer_code)+'">Subscribe · $125/month</button>':'')+'</article>').join('')+'</div>';
+  offers.innerHTML='<h3>Additional services</h3><p class="lab-store-explainer">Add-on purchases require a verified payment price and active billing integration. Features already included in your plan will not be offered as duplicate purchases.</p><div class="lab-store-offer-grid">'+list.map(x=>'<article class="lab-store-offer"><small>'+escape(x.category)+'</small><h4>'+escape(x.title)+'</h4><p>'+escape(x.description)+'</p><strong>'+(x.price_cents!==null&&x.price_cents!==undefined?(x.ready?'':'Proposed ')+(Number(x.price_cents)/100).toLocaleString('en-US',{style:'currency',currency:x.currency||'USD'})+(x.billing_interval==='month'?'/month':''):'Pricing to be confirmed')+'</strong><span class="lab-store-state">'+(includedCodes.has(x.feature_code)?'Included with your plan':x.offer_code==='consortium_125'&&x.ready?'Available for subscription':x.ready?'Billing setup pending':'Coming soon')+'</span>'+(x.offer_code==='consortium_125'&&x.ready&&!includedCodes.has(x.feature_code)?'<button type="button" class="lab-store-upgrade" data-buy-addon="'+escape(x.offer_code)+'">Subscribe · $125/month</button>':'')+'</article>').join('')+'</div>';
+  if(d.consortium_subscription?.active){
+   const sub=d.consortium_subscription;
+   const extra=document.createElement('div');extra.className='lab-store-subscription-status';
+   const till=sub.current_period_end?new Date(sub.current_period_end).toLocaleDateString():null;
+   const p=document.createElement('p');
+   p.textContent=sub.cancel_at_period_end?'Consortium subscription scheduled to end'+(till?' on '+till:'')+'. Access stays available through the paid period.':'Consortium membership is active at $125/month'+(till?' · Current paid period ends '+till:'')+'.';
+   extra.append(p);
+   if(!sub.cancel_at_period_end){
+    const stop=document.createElement('button');stop.type='button';stop.className='lab-store-cancel';stop.textContent='Cancel future renewals';extra.append(stop);
+    stop.onclick=async()=>{
+     if(!window.confirm('Cancel consortium auto-renewal at the end of your current paid period? Your Lab Account remains active.'))return;
+     stop.disabled=true;
+     try{await request({action:'cancel_addon'});p.textContent='Renewal cancellation scheduled. Your consortium access stays active through the current paid period.';stop.remove()}
+     catch(e){stop.disabled=false;notice.textContent=e.message||'Could not update the subscription.'}
+    };
+   }
+   offers.prepend(extra);
+  }
   offers.querySelectorAll('[data-buy-addon]').forEach(btn=>btn.addEventListener('click',async()=>{
    btn.disabled=true;const original=btn.textContent;btn.textContent='Opening secure checkout…';
    try{
