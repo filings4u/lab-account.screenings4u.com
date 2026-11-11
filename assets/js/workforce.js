@@ -373,7 +373,7 @@ async function initDonorPass(){
 }
 
 
-const storeMarkup=()=>'<div class="lab-store"><div class="lab-store-intro"><h2>Plans, features & upgrades</h2><p>Compare what your account includes, request an upgrade without losing your existing laboratory records, and explore optional services. Upgrades are not billed until a verified checkout is available.</p></div><div id="labStoreNotice" class="results-message" role="status">Loading your verified plan and store catalog…</div><div id="labStorePlans"></div><div id="labStoreFeatures"></div><div id="labStoreOffers"></div></div>';
+const storeMarkup=()=>'<div class="lab-store"><div class="lab-store-intro"><h2>Plans, features & upgrades</h2><p>Compare what your account includes, request an upgrade without losing your existing laboratory records, and explore optional services. Upgrades are paid purchases. Your plan changes only after payment is verified.</p></div><div id="labStoreNotice" class="results-message" role="status">Loading your verified plan and store catalog…</div><div id="labStorePlans"></div><div id="labStoreFeatures"></div><div id="labStoreOffers"></div></div>';
 async function initLabStore(){
  const notice=document.querySelector('#labStoreNotice'),plans=document.querySelector('#labStorePlans'),features=document.querySelector('#labStoreFeatures'),offers=document.querySelector('#labStoreOffers');if(!notice||!plans||!features||!offers)return;
  const sb=window.labAccountClient;
@@ -389,7 +389,7 @@ async function initLabStore(){
    const action=current?'<span class="lab-store-state">Current plan</span>':higher?(requested?'<span class="lab-store-state">Payment pending</span>':path?.ready?'<button class="lab-store-upgrade" type="button" data-upgrade="'+escape(sku)+'">Purchase upgrade · '+(Number(path.price_cents||0)/100).toLocaleString('en-US',{style:'currency',currency:'USD'})+'</button>':'<span class="lab-store-state">Checkout unavailable</span>'):'<span class="lab-store-state">Included</span>';
    const added=planFeatures(sku).filter(f=>!d.plan_feature_codes?.[d.plan_sku]?.includes(f.feature_code));
    const benefits=added.length?'<ul class="lab-store-benefits">'+added.map(f=>'<li>'+escape(f.title)+(f.delivery_status==='planned'?' <small>(coming soon)</small>':'')+'</li>').join('')+'</ul>':'<p class="lab-store-plan-note">Core laboratory operations and customer support</p>';
-   return '<article class="lab-store-plan'+(current?' is-current':'')+'"><div class="lab-store-plan-header"><small>PLAN '+(i+1)+'</small><h4>'+escape(name(sku))+'</h4></div><p>'+escape(text)+'</p>'+benefits+'<p class="lab-store-plan-note">'+(path?.ready?'Checkout setup under verification.':'Upgrade pricing is confirmed before any payment.')+'</p>'+action+'</article>';
+   return '<article class="lab-store-plan'+(current?' is-current':'')+'"><div class="lab-store-plan-header"><small>PLAN '+(i+1)+'</small><h4>'+escape(name(sku))+'</h4></div><p>'+escape(text)+'</p>'+benefits+'<p class="lab-store-plan-note">'+(path?.ready?'One-time secure checkout. Your existing Lab Account is retained.':'One-time upgrade price is calculated from the current plan catalog.')+'</p>'+action+'</article>';
   }).join('')+'</div>';
   const visible=(d.features||[]).filter(x=>x.included);
   features.innerHTML='<h3>Your plan includes</h3><div class="lab-store-feature-grid">'+visible.map(x=>'<div class="lab-store-feature"><span class="lab-store-feature-icon">'+(x.available?'✓':'◷')+'</span><div><strong>'+escape(x.title)+'</strong><p>'+escape(x.description)+'</p><small>'+(x.available?'Included in your plan':'Planned feature — not yet available')+'</small></div></div>').join('')+'</div>';
@@ -399,7 +399,7 @@ async function initLabStore(){
   plans.querySelectorAll('[data-upgrade]').forEach(btn=>btn.addEventListener('click',async()=>{
    btn.disabled=true;const original=btn.textContent;btn.textContent='Connecting to checkout…';notice.textContent='Opening secure screenings4u checkout…';
    try{const result=await request({action:'begin_checkout',target_plan_sku:btn.dataset.upgrade});if(!result.checkout_url)throw Error('Secure checkout was not created.');const url=new URL(result.checkout_url);if(url.origin!=='https://screenings4u.com'||url.pathname!=='/checkout.html')throw Error('Unexpected checkout destination.');location.assign(url.href);}
-   catch(e){btn.disabled=false;btn.textContent=original;notice.textContent=e.message||'Unable to request an upgrade.';}
+   catch(e){btn.disabled=false;btn.textContent=original;notice.textContent=e.message||'Unable to begin purchase.';}
   }));
  }catch(e){notice.textContent=e.message||'The store is temporarily unavailable.'}
 }
