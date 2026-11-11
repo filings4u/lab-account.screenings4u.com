@@ -29,16 +29,26 @@ Deno.serve(async req=>{
    db.from("lab_portal_upgrade_paths").select("current_plan_sku,target_plan_sku,offer_title,checkout_service_sku,checkout_enabled,status").eq("current_plan_sku",plan)
   ]);
   for(const q of [f,p,o,u])if(q.error)throw q.error;
-  const subscription=await db.from("lab_consortium_subscriptions").select("status,last_invoice_paid_at,stripe_subscription_id").eq("user_id",user.id).maybeSingle();
+  const subscription=await db.from("lab_consortium_subscriptions").select("status,last_invoice_paid_at,stripe_subscription_id,current_period_end,stripe_checkout_session_id").eq("user_id",user.id).maybeSingle();
   if(subscription.error)throw subscription.error;
-  const addonActive=plan==="lab-account"&&subscription.data?.status==="active"&&!!subscription.data?.last_invoice_paid_at;
+  const addonActive=plan==="lab-account"&&subscription.data?.status==="active"&&!!subscription.data?.last_invoice_paid_at&&(!subscription.data.current_period_end||Date.parse(subscription.data.current_period_end)>Date.now());
   const memberships=await db.from("organization_memberships").select("organization_id").eq("user_id",user.id).eq("status","active").limit(100);
   if(memberships.error)throw memberships.error;
   let otherConsortium=false;
   if(memberships.data?.length){
-   const existing=await db.from("subscriptions").select("id,status").in("organization_id",memberships.data.map((x:any)=>x.organization_id)).in("status",["active","trialing"]).limit(1);
-   if(existing.error)throw existing.error;
-   otherConsortium=Boolean(existing.data?.length);
+   const ctpas=await db.from("ctpas").select("tenant_id").in("organization_id",memberships.data.map((x:any)=>x.organization_id)).limit(100);
+   if(ctpas.error)throw ctpas.error;
+   const tenantIds=[...new Set((ctpas.data||[]).map((x:any)=>x.tenant_id).filter(Boolean))];
+   if(tenantIds.length){
+    const plans=await db.from("plans").select("id").in("code",["dot_ctpa_essential","dot_ctpa_professional","dot_ctpa_enterprise"]);
+    if(plans.error)throw plans.error;
+    const planIds=(plans.data||[]).map((x:any)=>x.id);
+    if(planIds.length){
+     const existing=await db.from("subscriptions").select("id").in("tenant_id",tenantIds).in("plan_id",planIds).in("status",["active","trialing"]).limit(1);
+     if(existing.error)throw existing.error;
+     otherConsortium=Boolean(existing.data?.length);
+    }
+   }
   }
   const included=new Set((p.data||[]).filter(x=>x.plan_sku===plan).map(x=>x.feature_code));
   if(addonActive)for(const x of (p.data||[]).filter(x=>x.plan_sku==="lab-account-random-consortium"))included.add(x.feature_code);
@@ -60,6 +70,7 @@ Deno.serve(async req=>{
   if(action==="begin_addon"){
    if(String(payload.offer_code||"")!=="consortium_125")return send({error:"Unsupported add-on"},400);
    if(plan!=="lab-account"||addonActive||otherConsortium)return send({error:"Consortium access is already included or currently active for this account."},409);
+   if(subscription.data?.stripe_checkout_session_id && subscription.data.status==="checkout_pending")return send({error:"A consortium checkout is already open. Complete or cancel it before starting another."},409);
    if(subscription.data?.stripe_subscription_id && !["canceled","incomplete_expired"].includes(subscription.data.status))return send({error:"A consortium subscription already exists. Manage the existing subscription before purchasing again."},409);
    const offer=(o.data||[]).find(x=>x.offer_code==="consortium_125");
    if(!offer||offer.price_cents!==12500||offer.billing_interval!=="month")return send({error:"Consortium offer configuration is incomplete"},409);
