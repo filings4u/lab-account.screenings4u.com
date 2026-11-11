@@ -18,6 +18,7 @@ Deno.serve(async req=>{
   const ent=await verified.json().catch(()=>({}));
   if(!verified.ok||ent.authorized!==true)return send({error:"Lab Account access required"},403);
   if(ent.preview===true)return send({error:"Preview-only Lab Accounts cannot request commercial upgrades"},403);
+  if(ent.customer_test_access===true&&String((await req.clone().json().catch(()=>({})).action||"catalog")!=="catalog")return send({error:"This customer test account may use included services, but purchases must use a separately paid customer account."},403);
   const db=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});
   const payload=await req.json().catch(()=>({}));
   const action=String(payload.action||"catalog");
@@ -66,7 +67,7 @@ Deno.serve(async req=>{
   if(action==="catalog"){
    const own=await db.from("lab_portal_upgrade_requests").select("id,current_plan_sku,target_plan_sku,status,created_at").eq("user_id",user.id).in("status",["checkout_pending"]).order("created_at",{ascending:false}).limit(25);
    if(own.error)throw own.error;
-   return send({plan_sku:plan,plan_names:{"lab-account":"Lab Account","lab-account-random-consortium":"Lab Account + Consortium","lab-account-random-consortium-docs":"Lab Account + Consortium + Docs"},plan_feature_codes:Object.fromEntries(SKUS.map(sku=>[sku,(p.data||[]).filter(x=>x.plan_sku===sku).map(x=>x.feature_code)])),features,offers:safeOffers,consortium_subscription:{active:addonActive,status:subscription.data?.status||"none",already_covered:otherConsortium||plan!=="lab-account",cancel_at_period_end:subscription.data?.cancel_at_period_end||false,current_period_end:subscription.data?.current_period_end||null},upgrades,requests:own.data||[],commercial_checkout_enabled:upgrades.some(x=>x.ready)||safeOffers.some(x=>x.ready)});
+   return send({plan_sku:plan,plan_names:{"lab-account":"Lab Account","lab-account-random-consortium":"Lab Account + Consortium","lab-account-random-consortium-docs":"Lab Account + Consortium + Docs"},plan_feature_codes:Object.fromEntries(SKUS.map(sku=>[sku,(p.data||[]).filter(x=>x.plan_sku===sku).map(x=>x.feature_code)])),features,offers:safeOffers,consortium_subscription:{active:addonActive,status:subscription.data?.status||"none",already_covered:otherConsortium||plan!=="lab-account",cancel_at_period_end:subscription.data?.cancel_at_period_end||false,current_period_end:subscription.data?.current_period_end||null},upgrades,requests:own.data||[],customer_test_access:ent.customer_test_access===true,commercial_checkout_enabled:ent.customer_test_access===true?false:upgrades.some(x=>x.ready)||safeOffers.some(x=>x.ready)});
   }
   if(action==="cancel_addon"){
    if(plan!=="lab-account"||!addonActive||!subscription.data?.stripe_subscription_id)return send({error:"There is no active consortium add-on to cancel"},409);
