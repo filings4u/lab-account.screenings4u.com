@@ -35,7 +35,7 @@ Deno.serve(async req=>{
   if(action==="catalog"){
    const own=await db.from("lab_portal_upgrade_requests").select("id,current_plan_sku,target_plan_sku,status,created_at").eq("user_id",user.id).in("status",["requested","quoted","checkout_pending"]).order("created_at",{ascending:false}).limit(25);
    if(own.error)throw own.error;
-   return send({plan_sku:plan,plan_names:{"lab-account":"Lab Account","lab-account-random-consortium":"Lab Account + Consortium","lab-account-random-consortium-docs":"Lab Account + Consortium + Docs"},features,offers:safeOffers,upgrades,requests:own.data||[],commercial_checkout_enabled:upgrades.some(x=>x.ready)||safeOffers.some(x=>x.ready)});
+   return send({plan_sku:plan,plan_names:{"lab-account":"Lab Account","lab-account-random-consortium":"Lab Account + Consortium","lab-account-random-consortium-docs":"Lab Account + Consortium + Docs"},plan_feature_codes:Object.fromEntries(SKUS.map(sku=>[sku,(p.data||[]).filter(x=>x.plan_sku===sku).map(x=>x.feature_code)])),features,offers:safeOffers,upgrades,requests:own.data||[],commercial_checkout_enabled:upgrades.some(x=>x.ready)||safeOffers.some(x=>x.ready)});
   }
   if(action==="request_upgrade"){
    const target=String(payload.target_plan_sku||"");
