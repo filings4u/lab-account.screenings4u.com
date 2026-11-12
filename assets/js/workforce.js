@@ -1,7 +1,7 @@
 (()=>{'use strict';const cfg=window.S4U_ACCESS_CONFIG;const main=document.querySelector('#main');const names={'dashboard':'Dashboard','lab-accounts':'Lab Accounts','results':'Results','billing':'Billing','documents':'Documents','supplies':'Supplies','testing-order':'Testing Orders','order-history':'Order History','tracking':'Tracking','benefits':'Account Benefits','client-directory':'Client Directory','ccf-archive':'CCF Archive','result-delivery':'Result Delivery','supply-alerts':'Supply Alerts','analytics':'Testing Analytics','create-testing-order':'Create Testing Order','specimen-shipment':'Send Collected Tests','support':'Support','consortium':'Consortium','consortium-form':'Consortium Program Setup','consortium-detail':'Consortium Program Details','client-directory':'Client Directory','ccf-archive':'CCF Archive','result-delivery':'Result Delivery','supply-alerts':'Supply Alerts','analytics':'Testing Analytics','order-view':'Order Details','result-view':'Result Details','invoice-view':'Invoice Details','testing-order-view':'Testing Order Details','testing-order-edit':'Edit Testing Order','support-ticket':'Support Ticket','supply-request':'Supply Request','donor-pass-view':'Donor Pass','store':'Store & Upgrades'};const routes=Object.entries(names).map(([key,label])=>({key,label,url:'/'+key+'.html'}));let current=(document.body.dataset.portalPage||'dashboard');let activeUser=null,activeIntake=null,activeEntitlement=null;const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const dashboardMarkup=intake=>{
  const state=String(intake?.status||'submitted').toLowerCase(),done=['completed','complete','active','approved'].includes(state),label=done?'Setup completed':state==='submitted'?'Intake received':state==='pending'?'Pending review':state.replaceAll('_',' ');
  const date=intake?.submittedAt?new Date(intake.submittedAt).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):'Not available';
- const tools=[['Lab Accounts','lab-accounts','Account information'],['Testing Orders','testing-order','Manage testing orders'],['Results','results','Laboratory results'],['Billing','billing','Billing and invoices'],['Documents','documents','Business documents'],['Supplies','supplies','Testing materials'],['Order History','order-history','Past testing orders'],...(activeEntitlement?.features?.lab_account&&activeEntitlement?.preview!==true?[['Client Directory','client-directory','Manage customer contacts'],['CCF Archive','ccf-archive','Released chain-of-custody records'],['Result Delivery','result-delivery','Authorized result delivery requests'],['Supply Alerts','supply-alerts','Monitor reorder thresholds'],['Testing Analytics','analytics','View your testing activity']]:[]),...(activeEntitlement?.features?.consortium?[['Consortium','consortium','Manage eligible pools and service requests']]:[]),,['Store & Upgrades','store','View packages and add-on services']];
+ const tools=[['Lab Accounts','lab-accounts','Account information'],['Testing Orders','testing-order','Manage testing orders'],['Results','results','Laboratory results'],['Billing','billing','Billing and invoices'],['Documents','documents','Business documents'],['Supplies','supplies','Testing materials'],['Order History','order-history','Past testing orders'],...(activeEntitlement?.preview!==true?[['Client Directory','client-directory','Manage customer contacts','client_directory'],['CCF Archive','ccf-archive','Released chain-of-custody records','digital_coc_archive'],['Result Delivery','result-delivery','Authorized result delivery requests','automatic_result_delivery'],['Supply Alerts','supply-alerts','Monitor reorder thresholds','supply_reorder_alerts'],['Testing Analytics','analytics','View your testing activity','analytics_reporting']].filter(x=>(activeEntitlement?.feature_codes||[]).includes(x[3])).map(x=>x.slice(0,3)):[]),...((activeEntitlement?.feature_codes||[]).includes('consortium_pools')?[['Consortium','consortium','Manage your consortium programs']]:[]),...((activeEntitlement?.feature_codes||[]).some(x=>['random_selection_calendar','consortium_certificates','clearinghouse_setup','client_document_templates','audit_readiness_export'].includes(x))?[['Account Benefits','benefits','Purchased additional benefits']]:[]),['Store & Upgrades','store','View packages and add-on services']];
  return '<div class="dash-intro"><div><small>WORKFORCE ACCOUNT OVERVIEW</small><h2>Lab Account Dashboard</h2><p>Track your onboarding progress and workforce testing operations.</p></div><strong class="dash-status">'+escape(label)+'</strong></div>'+
  '<div id="dashPlan" class="dash-card dash-current-plan" aria-live="polite"><div><small>CURRENT MEMBERSHIP</small><h3>Checking your Lab Account plan…</h3><p>Your active services are verified against your account purchases and subscription status.</p></div><a class="dash-action" href="/store.html">View plan & upgrades</a></div>'+ 
  '<div class="dash-kpis"><div class="dash-kpi"><span>Account setup</span><strong>'+escape(label)+'</strong><small>Verified intake status</small></div><div class="dash-kpi"><span>Intake submitted</span><strong>'+escape(date)+'</strong><small>Business details received</small></div></div>'+
@@ -974,6 +974,14 @@ async function initCustomerBenefits(){
   const data=await r.json().catch(()=>({}));if(!r.ok||data.error)throw Error(data.error||'Could not complete this request');return data;
  };
  const message=(text,error=false)=>{notice.textContent=text;notice.classList.toggle('lab-consortium-error',error)};
+ const downloadBenefitPdf=async(url,prefix)=>{
+  try{
+   const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw Error('Download not available');
+   const blob=await response.blob();if(!blob.type.includes('pdf')&&blob.size<5)throw Error('Invalid PDF');
+   const objectUrl=URL.createObjectURL(new Blob([blob],{type:'application/pdf'}));
+   const link=document.createElement('a');link.href=objectUrl;link.download=String(prefix||'Lab-Account-Document').replace(/[^A-Za-z0-9_-]+/g,'-').slice(0,70)+'.pdf';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(objectUrl),30000);
+  }catch(err){window.location.assign(url)}
+ };
  const selectPrograms=()=>currentData.programs.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+' ('+esc(p.program_type)+')</option>').join('');
  const block=(id,title,desc,body)=>'<section class="lab-benefit-box" id="'+id+'"><h3>'+esc(title)+'</h3><p>'+esc(desc)+'</p>'+body+'</section>';
  const render=()=>{
@@ -1004,7 +1012,7 @@ async function initCustomerBenefits(){
   e.preventDefault();const btn=e.target.querySelector('[type=submit]');if(btn)btn.disabled=true;
   try{
    const data=await call({action,...build(new FormData(e.target),e.target)});
-   if(data.download_url)window.open(data.download_url,'_blank','noopener,noreferrer');
+   if(data.download_url)downloadBenefitPdf(data.download_url,action);
    await refresh();message(data.notice||'Your information has been saved.');
   }catch(err){message(err.message||'Unable to complete action',true)}finally{if(btn)btn.disabled=false}
  };
@@ -1022,7 +1030,7 @@ async function initCustomerBenefits(){
   try{
    const action=btn.dataset.benefitAction,id=btn.dataset.id;
    if(action==='cancel-schedule'){if(!confirm('Cancel this scheduled selection date?'))return;await call({action:'schedule_cancel',id});await refresh()}
-   else if(action==='download'){const x=await call({action:'download',id});if(!x.download_url)throw Error('Download unavailable');window.open(x.download_url,'_blank','noopener,noreferrer')}
+   else if(action==='download'){const x=await call({action:'download',id});if(!x.download_url)throw Error('Download unavailable');await downloadBenefitPdf(x.download_url,'Lab-Account-Document')}
   }catch(err){message(err.message||'Unable to complete action',true)}finally{btn.disabled=false}
  });
  try{await refresh()}catch(err){message(err.message||'Unable to load benefits',true)}
