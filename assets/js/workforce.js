@@ -670,6 +670,8 @@ async function initConsortiumManager(){
  const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
  const fmt=x=>x?new Date(x+'T12:00:00').toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):'—';
  const status=x=>x==='active'?'Active':x==='paused'?'Paused':'Draft';
+ const rateValue=n=>n===null||n===undefined?'Not applicable':Number(n).toLocaleString('en-US',{maximumFractionDigits:2})+'%';
+ const ruleFor=(rules,agency,date)=>rules.filter(r=>r.dot_agency===agency&&r.effective_date<=date&&(!r.end_date||r.end_date>=date)).sort((a,b)=>b.effective_date.localeCompare(a.effective_date)||Number(b.version||0)-Number(a.version||0))[0]||null;
  const field=(label,name,value='',type='text',extra='')=>'<label class="lab-consortium-field"><span>'+esc(label)+'</span><input type="'+type+'" name="'+name+'" value="'+esc(value)+'" '+extra+'></label>';
  const select=(label,name,values,value)=>'<label class="lab-consortium-field"><span>'+esc(label)+'</span><select name="'+name+'">'+values.map(x=>'<option value="'+esc(x[0])+'"'+(x[0]===value?' selected':'')+'>'+esc(x[1])+'</option>').join('')+'</select></label>';
  const message=(s,error=false)=>{notice.hidden=false;notice.textContent=s;notice.classList.toggle('lab-consortium-error',error)};
@@ -696,12 +698,22 @@ async function initConsortiumManager(){
    select('Selection schedule','selection_schedule',[['monthly','Monthly'],['quarterly','Quarterly'],['semiannual','Semiannual'],['annual','Annual']],program?.selection_schedule||'quarterly')+
    field('Effective date','effective_date',program?.effective_date||today(),'date','required')+
    select('Program status','status',[['draft','Draft'],['active','Active'],['paused','Paused']],program?.status||'draft')+
+   '<div id="consortiumRates" class="lab-consortium-rate-card full"><h4>DOT regulatory random testing rates</h4><p>Read-only rates from the active DOT regulatory rule for the selected agency and effective date.</p><div><span>Drug annual rate <strong id="consortiumDrugRate">—</strong></span><span>Alcohol annual rate <strong id="consortiumAlcoholRate">—</strong></span></div></div>'+
    '<label class="lab-consortium-field full"><span>Program notes</span><textarea name="notes" maxlength="1000" rows="3">'+esc(program?.notes||'')+'</textarea></label></div>'+
    '<div class="lab-consortium-form-actions"><button type="submit" class="dash-action">'+(program?'Save changes':'Create program')+'</button><button type="button" class="signout" data-consortium-action="back">Cancel</button></div></form>'+
    '<p class="lab-consortium-help">Regulated DOT testing rates are determined by the applicable agency. Program configuration does not itself carry out a random selection or issue a test order.</p>';
   const form=editor.querySelector('#consortiumProgramForm');
-  const updateAgency=()=>{const agency=editor.querySelector('.lab-consortium-agency');agency.hidden=form.elements.program_type.value!=='DOT';form.elements.dot_agency.required=!agency.hidden};
-  form.elements.program_type.addEventListener('change',updateAgency);updateAgency();
+  let activeRules=[];
+  const updateAgency=()=>{
+   const dot=form.elements.program_type.value==='DOT',agency=editor.querySelector('.lab-consortium-agency'),panel=editor.querySelector('#consortiumRates');
+   agency.hidden=!dot;form.elements.dot_agency.required=dot;panel.hidden=!dot;
+   const rule=dot?ruleFor(activeRules,form.elements.dot_agency.value,form.elements.effective_date.value):null;
+   editor.querySelector('#consortiumDrugRate').textContent=rule?rateValue(rule.drug_rate):'No current rule';
+   editor.querySelector('#consortiumAlcoholRate').textContent=rule?rateValue(rule.alcohol_rate):'No current rule';
+  };
+  for(const input of [form.elements.program_type,form.elements.dot_agency,form.elements.effective_date])input.addEventListener('change',updateAgency);
+  updateAgency();
+  call({action:'rules'}).then(d=>{activeRules=d.rules||[];updateAgency()}).catch(err=>message('Unable to load DOT rate rules: '+(err.message||'Unknown error'),true));
   form.addEventListener('submit',async e=>{
    e.preventDefault();const button=form.querySelector('[type="submit"]');button.disabled=true;
    const program=Object.fromEntries(new FormData(form));if(program.program_type!=='DOT')program.dot_agency=null;
@@ -714,7 +726,8 @@ async function initConsortiumManager(){
   const memberRows=(d.members||[]).length?d.members.map(m=>'<tr><td><strong>'+esc(m.first_name+' '+m.last_name)+'</strong><small>'+esc(m.employee_reference||'')+'</small></td><td>'+esc(m.email||'—')+'</td><td>'+esc(m.eligibility_status)+'</td><td>'+fmt(m.joined_on)+'</td><td><button type="button" class="signout" data-consortium-action="edit-member" data-member-id="'+esc(m.id)+'">Edit</button> <button type="button" class="signout lab-consortium-danger" data-consortium-action="remove-member" data-member-id="'+esc(m.id)+'">Remove</button></td></tr>').join(''):'<tr><td colspan="5">No participants added yet.</td></tr>';
   editor.innerHTML='<div class="lab-consortium-toolbar"><a class="signout" href="/consortium.html">All programs</a><h3>'+esc(p.name)+'</h3><span class="lab-consortium-status">'+esc(status(p.status))+'</span></div>'+
   '<div class="lab-consortium-detail-actions"><button type="button" class="dash-action" data-consortium-action="add-member">+ Add participant</button><button type="button" class="signout" data-consortium-action="edit">Edit program</button><button type="button" class="signout" data-consortium-action="export">Download all records (CSV)</button><button type="button" class="signout lab-consortium-danger" data-consortium-action="delete">Delete consortium</button></div>'+
-  '<div class="lab-consortium-summary"><div><small>Program</small><strong>'+esc(p.program_type)+(p.dot_agency?' · '+esc(p.dot_agency):'')+'</strong></div><div><small>Selection schedule</small><strong>'+esc(p.selection_schedule)+'</strong></div><div><small>Effective date</small><strong>'+fmt(p.effective_date)+'</strong></div><div><small>Participants</small><strong>'+d.members.length+'</strong></div></div>'+
+  '<div class="lab-consortium-summary"><div><small>Program</small><strong>'+esc(p.program_type)+(p.dot_agency?' · '+esc(p.dot_agency):'')+'</strong></div><div><small>Schedule</small><strong>'+esc(p.selection_schedule)+'</strong></div><div><small>Drug annual rate</small><strong>'+esc(p.program_type==='DOT'&&d.regulatory_rule?rateValue(d.regulatory_rule.drug_rate):'Not applicable')+'</strong></div><div><small>Alcohol annual rate</small><strong>'+esc(p.program_type==='DOT'&&d.regulatory_rule?rateValue(d.regulatory_rule.alcohol_rate):'Not applicable')+'</strong></div><div><small>Current participants</small><strong>'+d.members.length+'</strong></div><div><small>Eligible participants</small><strong>'+d.members.filter(m=>m.eligibility_status==='eligible').length+'</strong></div></div>'+
+  '<div class="lab-consortium-help">DOT eligibility is limited to active safety-sensitive, DOT-covered participants. Rates are read-only and follow the applicable regulatory rule. Official random selection runs are not performed in this customer roster workspace.</div>'+
   '<section class="lab-consortium-panel"><h3>Participant roster</h3><p>Manage people enrolled in this customer-managed program.</p><div class="results-table-wrap"><table class="results-table"><thead><tr><th>Participant</th><th>Email</th><th>Eligibility</th><th>Joined</th><th>Actions</th></tr></thead><tbody>'+memberRows+'</tbody></table></div></section>'+
   '<section class="lab-consortium-panel"><h3>Program activity</h3><div class="lab-consortium-timeline">'+(d.events.length?d.events.slice().reverse().slice(0,25).map(x=>'<p><strong>'+esc(x.event_type.replaceAll('_',' '))+'</strong> · '+new Date(x.created_at).toLocaleString('en-US')+'<span>'+esc(x.summary)+'</span></p>').join(''):'<p>No recorded activity yet.</p>')+'</div></section>'+
   '<div id="consortiumInline"></div>';
@@ -727,7 +740,9 @@ async function initConsortiumManager(){
    field('Employee reference','employee_reference',member?.employee_reference||'','text','maxlength="100"')+
    field('Email (optional)','email',member?.email||'','email','maxlength="200"')+
    field('Joined date','joined_on',member?.joined_on||today(),'date','required')+
+   select('Employment status','employment_status',[['active','Active'],['inactive','Inactive']],member?.employment_status||'active')+
    select('Eligibility','eligibility_status',[['eligible','Eligible'],['inactive','Inactive']],member?.eligibility_status||'eligible')+
+   (detail?.program?.program_type==='DOT'?'<div class="lab-consortium-checks full"><label><input type="checkbox" name="dot_covered" '+(member?.dot_covered?'checked':'')+'> DOT-covered position</label><label><input type="checkbox" name="safety_sensitive" '+(member?.safety_sensitive?'checked':'')+'> Safety-sensitive duties</label></div>':'')+
    '</div><div class="lab-consortium-form-actions"><button class="dash-action" type="submit">'+(member?'Save participant':'Add participant')+'</button><button type="button" class="signout" data-consortium-action="cancel-inline">Cancel</button></div></form></section>';
   panel.scrollIntoView({block:'nearest',behavior:'smooth'});
   const form=panel.querySelector('form');form.addEventListener('submit',async e=>{
@@ -738,9 +753,9 @@ async function initConsortiumManager(){
  const download=async()=>{
   if(!selected)throw Error('Choose a program first');
   const d=await call({action:'export',id:selected});
-  const columns=['record_type','program_id','program_name','program_type','dot_agency','selection_schedule','effective_date','program_status','member_id','first_name','last_name','employee_reference','email','eligibility_status','joined_on','event_type','event_summary','event_at'];
+  const columns=['record_type','program_id','program_name','program_type','dot_agency','selection_schedule','effective_date','program_status','member_id','first_name','last_name','employee_reference','email','employment_status','dot_covered','safety_sensitive','eligibility_status','joined_on','event_type','event_summary','event_at'];
   const rows=[{record_type:'program',program_id:d.program.id,program_name:d.program.name,program_type:d.program.program_type,dot_agency:d.program.dot_agency,selection_schedule:d.program.selection_schedule,effective_date:d.program.effective_date,program_status:d.program.status}];
-  (d.members||[]).forEach(m=>rows.push({record_type:'participant',program_id:d.program.id,program_name:d.program.name,member_id:m.id,first_name:m.first_name,last_name:m.last_name,employee_reference:m.employee_reference,email:m.email,eligibility_status:m.eligibility_status,joined_on:m.joined_on}));
+  (d.members||[]).forEach(m=>rows.push({record_type:'participant',program_id:d.program.id,program_name:d.program.name,member_id:m.id,first_name:m.first_name,last_name:m.last_name,employee_reference:m.employee_reference,email:m.email,employment_status:m.employment_status,dot_covered:m.dot_covered,safety_sensitive:m.safety_sensitive,eligibility_status:m.eligibility_status,joined_on:m.joined_on}));
   (d.events||[]).forEach(x=>rows.push({record_type:'activity',program_id:d.program.id,program_name:d.program.name,event_type:x.event_type,event_summary:x.summary,event_at:x.created_at}));
   const csvSafe=x=>{let val=String(x??'');if(/^\s*[=+@-]/.test(val))val="'"+val;return '"'+val.replaceAll('"','""')+'"'};
   const csv='\uFEFF'+[columns.join(','),...rows.map(row=>columns.map(k=>csvSafe(row[k])).join(','))].join('\r\n');
