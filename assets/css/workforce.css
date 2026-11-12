@@ -629,3 +629,12 @@ body[data-portal-page="consortium-detail"] .content{max-width:1450px}
 .lab-consortium-subpage .lab-consortium-summary{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:760px){.lab-consortium-subpage .lab-consortium-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.lab-consortium-rate-card>div,.lab-consortium-subpage .lab-consortium-summary{grid-template-columns:1fr}}
+
+/* Supply-only shipment tracking */
+.lab-tracking-page .lab-tracking-filters{grid-template-columns:minmax(0,2fr) minmax(200px,1fr)}
+.lab-tracking-page .lab-tracking-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+.lab-tracking-page .lab-tracking-primary{background:#FDC102;color:#01122F;border-color:#e5ab00}
+.lab-tracking-page .lab-tracking-primary:hover{background:#f3b900}
+.lab-tracking-page .lab-tracking-pending{font-size:.78rem;color:#617994}
+@media(max-width:900px){.lab-tracking-page .lab-tracking-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.lab-tracking-page .lab-tracking-kpis,.lab-tracking-page .lab-tracking-filters{grid-template-columns:1fr}}
