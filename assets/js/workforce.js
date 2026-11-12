@@ -672,7 +672,7 @@ async function initConsortiumManager(){
  const status=x=>x==='active'?'Active':x==='paused'?'Paused':'Draft';
  const field=(label,name,value='',type='text',extra='')=>'<label class="lab-consortium-field"><span>'+esc(label)+'</span><input type="'+type+'" name="'+name+'" value="'+esc(value)+'" '+extra+'></label>';
  const select=(label,name,values,value)=>'<label class="lab-consortium-field"><span>'+esc(label)+'</span><select name="'+name+'">'+values.map(x=>'<option value="'+esc(x[0])+'"'+(x[0]===value?' selected':'')+'>'+esc(x[1])+'</option>').join('')+'</select></label>';
- const message=(s,error=false)=>{notice.textContent=s;notice.classList.toggle('lab-consortium-error',error)};
+ const message=(s,error=false)=>{notice.hidden=false;notice.textContent=s;notice.classList.toggle('lab-consortium-error',error)};
  const call=async(data)=>{
   const {data:{session}}=await window.labAccountClient.auth.getSession();if(!session)throw Error('Session expired. Sign in again.');
   const r=await fetch(cfg.supabaseUrl+'/functions/v1/lab-customer-consortiums',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',apikey:cfg.supabasePublishableKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify(data)});
@@ -700,7 +700,7 @@ async function initConsortiumManager(){
  const showList=()=>{location.assign('/consortium.html')};
  const openForm=(program=null)=>{
   selected=program?.id||null;detail=null;directory.hidden=true;editor.hidden=false;root.querySelector('#consortiumNew').hidden=true;notice.hidden=true;
-  editor.innerHTML='<div class="lab-consortium-toolbar"><button type="button" class="signout" data-consortium-action="back">← Back to programs</button><h3>'+(program?'Edit Consortium':'Create Consortium')+'</h3></div><form id="consortiumProgramForm" class="lab-consortium-form"><div class="lab-consortium-form-grid">'+
+  editor.innerHTML='<div class="lab-consortium-toolbar"><a href="/consortium.html" class="signout">Back to programs</a><h3>'+(program?'Edit Consortium':'Create Consortium')+'</h3></div><form id="consortiumProgramForm" class="lab-consortium-form"><div class="lab-consortium-form-grid">'+
    field('Consortium program name','name',program?.name||'','text','required minlength="2" maxlength="160"')+
    select('Testing program','program_type',[['DOT','DOT regulated'],['NON-DOT','NON-DOT']],program?.program_type||'DOT')+
    '<div class="lab-consortium-agency">'+select('DOT agency','dot_agency',[['','Select agency'],...['FMCSA','FAA','FRA','FTA','PHMSA','USCG'].map(x=>[x,x])],program?.dot_agency||'')+'</div>'+
@@ -723,7 +723,7 @@ async function initConsortiumManager(){
   const d=await call({action:'detail',id});selected=id;detail=d;const p=d.program;
   directory.hidden=true;editor.hidden=false;root.querySelector('#consortiumNew').hidden=true;
   const memberRows=(d.members||[]).length?d.members.map(m=>'<tr><td><strong>'+esc(m.first_name+' '+m.last_name)+'</strong><small>'+esc(m.employee_reference||'')+'</small></td><td>'+esc(m.email||'—')+'</td><td>'+esc(m.eligibility_status)+'</td><td>'+fmt(m.joined_on)+'</td><td><button type="button" class="signout" data-consortium-action="edit-member" data-member-id="'+esc(m.id)+'">Edit</button> <button type="button" class="signout lab-consortium-danger" data-consortium-action="remove-member" data-member-id="'+esc(m.id)+'">Remove</button></td></tr>').join(''):'<tr><td colspan="5">No participants added yet.</td></tr>';
-  editor.innerHTML='<div class="lab-consortium-toolbar"><button type="button" class="signout" data-consortium-action="back">← All programs</button><h3>'+esc(p.name)+'</h3><span class="lab-consortium-status">'+esc(status(p.status))+'</span></div>'+
+  editor.innerHTML='<div class="lab-consortium-toolbar"><a class="signout" href="/consortium.html">All programs</a><h3>'+esc(p.name)+'</h3><span class="lab-consortium-status">'+esc(status(p.status))+'</span></div>'+
   '<div class="lab-consortium-detail-actions"><button type="button" class="dash-action" data-consortium-action="add-member">+ Add participant</button><button type="button" class="signout" data-consortium-action="edit">Edit program</button><button type="button" class="signout" data-consortium-action="export">Download all records (CSV)</button><button type="button" class="signout lab-consortium-danger" data-consortium-action="delete">Delete consortium</button></div>'+
   '<div class="lab-consortium-summary"><div><small>Program</small><strong>'+esc(p.program_type)+(p.dot_agency?' · '+esc(p.dot_agency):'')+'</strong></div><div><small>Selection schedule</small><strong>'+esc(p.selection_schedule)+'</strong></div><div><small>Effective date</small><strong>'+fmt(p.effective_date)+'</strong></div><div><small>Participants</small><strong>'+d.members.length+'</strong></div></div>'+
   '<section class="lab-consortium-panel"><h3>Participant roster</h3><p>Manage people enrolled in this customer-managed program.</p><div class="results-table-wrap"><table class="results-table"><thead><tr><th>Participant</th><th>Email</th><th>Eligibility</th><th>Joined</th><th>Actions</th></tr></thead><tbody>'+memberRows+'</tbody></table></div></section>'+
@@ -743,7 +743,7 @@ async function initConsortiumManager(){
   panel.scrollIntoView({block:'nearest',behavior:'smooth'});
   const form=panel.querySelector('form');form.addEventListener('submit',async e=>{
    e.preventDefault();const btn=form.querySelector('[type="submit"]');btn.disabled=true;
-   try{await call({action:member?'update_member':'add_member',id:selected,member_id:member?.id,member:Object.fromEntries(new FormData(form))});await load();await openDetail(selected);message('Participant saved.')}catch(err){message(err.message||'Unable to save participant',true)}finally{btn.disabled=false}
+   try{await call({action:member?'update_member':'add_member',id:selected,member_id:member?.id,member:Object.fromEntries(new FormData(form))});await openDetail(selected);message('Participant saved.')}catch(err){message(err.message||'Unable to save participant',true)}finally{btn.disabled=false}
   });
  };
  const download=async()=>{
@@ -780,13 +780,13 @@ async function initConsortiumManager(){
    if(action==='export'){btn.disabled=true;try{await download()}finally{btn.disabled=false}return}
    if(action==='remove-member'){
     if(!confirm('Remove this participant from the customer-managed consortium roster?'))return;
-    await call({action:'remove_member',id:selected,member_id:btn.dataset.memberId});await load();await openDetail(selected);message('Participant removed.');return;
+    await call({action:'remove_member',id:selected,member_id:btn.dataset.memberId});await openDetail(selected);message('Participant removed.');return;
    }
    if(action==='confirm-delete'){
     const confirmation=editor.querySelector('#consortiumConfirmDelete')?.value||'',ack=editor.querySelector('#consortiumDeleteAck')?.checked;
     if(!ack)throw Error('Confirm that you understand this deletion is permanent');
     btn.disabled=true;try{
-     await call({action:'delete',id:selected,confirm:confirmation});showList();await load();message('Consortium permanently deleted. Separate official testing and retained compliance records were not deleted.');
+     await call({action:'delete',id:selected,confirm:confirmation});location.assign('/consortium.html');
     }finally{btn.disabled=false}
    }
   }catch(err){message(err.message||'Unable to process the request',true)}
