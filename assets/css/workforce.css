@@ -539,3 +539,6 @@ body[data-portal-page="client-directory"] #advancedRows .premium-request strong,
 .lab-consortium-workspace [hidden]{display:none!important}
 @media(max-width:990px){.lab-consortium-directory{grid-template-columns:1fr}.lab-consortium-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.lab-consortium-kpis{grid-template-columns:1fr}.lab-consortium-summary,.lab-consortium-form-grid{grid-template-columns:1fr}.lab-consortium-toolbar,.lab-consortium-detail-actions{align-items:stretch}.lab-consortium-toolbar h3{flex-basis:100%}.lab-consortium-field.full{grid-column:auto}.lab-consortium-program,.lab-consortium-empty,.lab-consortium-editor,.lab-consortium-panel{padding:15px}.lab-consortium-detail-actions button,.lab-consortium-form-actions button{width:100%}}
+
+.lab-consortium-legacy{padding:12px 0;border-top:1px solid #e3ebf4;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:.87rem}
+.lab-consortium-legacy strong{color:#01122F}.lab-consortium-legacy span{color:#5f7792}
