@@ -661,7 +661,7 @@ async function initConsortiumManager(){
  const notice=root.querySelector('#consortiumNotice'),directory=root.querySelector('#consortiumDirectory'),editor=root.querySelector('#consortiumEditor'),kpis=root.querySelector('#consortiumKpis');
  let programs=[],selected=null,detail=null;
  const esc=escape;
- const today=()=>new Date().toLocaleDateString('en-CA');
+ const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
  const fmt=x=>x?new Date(x+'T12:00:00').toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):'—';
  const status=x=>x==='active'?'Active':x==='paused'?'Paused':'Draft';
  const field=(label,name,value='',type='text',extra='')=>'<label class="lab-consortium-field"><span>'+esc(label)+'</span><input type="'+type+'" name="'+name+'" value="'+esc(value)+'" '+extra+'></label>';
@@ -737,8 +737,8 @@ async function initConsortiumManager(){
   const rows=[{record_type:'program',program_id:d.program.id,program_name:d.program.name,program_type:d.program.program_type,dot_agency:d.program.dot_agency,selection_schedule:d.program.selection_schedule,effective_date:d.program.effective_date,program_status:d.program.status}];
   (d.members||[]).forEach(m=>rows.push({record_type:'participant',program_id:d.program.id,program_name:d.program.name,member_id:m.id,first_name:m.first_name,last_name:m.last_name,employee_reference:m.employee_reference,email:m.email,eligibility_status:m.eligibility_status,joined_on:m.joined_on}));
   (d.events||[]).forEach(x=>rows.push({record_type:'activity',program_id:d.program.id,program_name:d.program.name,event_type:x.event_type,event_summary:x.summary,event_at:x.created_at}));
-  const csvSafe=x=>{let val=String(x??'');if(/^[\\s]*[=+@\\-]/.test(val))val="'"+val;return '"'+val.replaceAll('"','""')+'"'};
-  const csv='\\uFEFF'+[columns.join(','),...rows.map(row=>columns.map(k=>csvSafe(row[k])).join(','))].join('\\r\\n');
+  const csvSafe=x=>{let val=String(x??'');if(/^\s*[=+@-]/.test(val))val="'"+val;return '"'+val.replaceAll('"','""')+'"'};
+  const csv='\uFEFF'+[columns.join(','),...rows.map(row=>columns.map(k=>csvSafe(row[k])).join(','))].join('\r\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download='consortium-'+String(d.program.name).toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,60)+'-records.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
   message('CSV records export started. Keep the file before deleting the program. Separate official testing and retention records are not included.');
