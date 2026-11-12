@@ -28,6 +28,7 @@ Deno.serve(async(req)=>{
  const ent=await verified.json().catch(()=>({}));
  if(!verified.ok||!ent.authorized||ent.preview===true)return out({error:"An active purchased Lab Account is required"},403);
  const permissions={consortium:ent.features?.consortium===true,compliance_docs:ent.features?.compliance_docs===true};
+ const availableFeatures=new Set<string>(Array.isArray(ent.feature_codes)?ent.feature_codes:[]);
  const db=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
  const body=await req.json().catch(()=>({}));
  const action=String(body.action||"list");
@@ -55,11 +56,11 @@ Deno.serve(async(req)=>{
  if(action==="list"){
   const result=await db.from("lab_plan_service_requests").select("id,feature_code,request_type,title,details,status,staff_notes,document_name,created_at,updated_at,fulfilled_at").eq("customer_user_id",user.id).order("created_at",{ascending:false}).limit(200);
   if(result.error)throw result.error;
-  return out({plan:ent.plan,permissions,requests:(result.data||[]).map((x:any)=>({...x,service_code:serviceOf(x.feature_code,x.request_type)})).filter((x:any)=>x.service_code&&permissions[definitions[x.service_code].permission]),services:Object.entries(definitions).filter(([,d])=>permissions[d.permission]).map(([code,d])=>({code,type:d.type,fields:d.fields}))});
+  return out({plan:ent.plan,permissions,requests:(result.data||[]).map((x:any)=>({...x,service_code:serviceOf(x.feature_code,x.request_type)})).filter((x:any)=>x.service_code&&permissions[definitions[x.service_code].permission]),services:Object.entries(definitions).filter(([,d])=>permissions[d.permission]&&availableFeatures.has(d.catalog)).map(([code,d])=>({code,type:d.type,fields:d.fields}))});
  }
  if(action==="create"){
   const feature=String(body.feature_code||""),def=definitions[feature];
-  if(!def||!permissions[def.permission])return out({error:"This service is not included in your purchased plan"},403);
+  if(!def||!permissions[def.permission]||!availableFeatures.has(def.catalog))return out({error:"This service is not currently available with your purchased Lab Account plan"},403);
   const source=(body.details&&typeof body.details==="object"&&!Array.isArray(body.details))?body.details:{};
   const details:Record<string,string>={};
   for(const key of def.fields){
