@@ -481,3 +481,61 @@ body[data-portal-page="client-directory"] #advancedRows .premium-request strong,
 .mobile-nav-links .nav-section+.nav-section{border-top:1px solid #dce5ef}
 .mobile-nav-links .nav-section-title{padding:8px 12px 5px;color:#536d89;font-size:.72rem;font-weight:850;letter-spacing:.065em;text-transform:uppercase}
 .mobile-nav-links .nav-section a[aria-current="page"]{background:#fff;color:#01122F;box-shadow:inset 4px 0 0 #FDC102}
+
+
+/* Customer-managed consortium workspace */
+.lab-consortium-workspace{display:grid;gap:20px;min-width:0}
+.lab-consortium-workspace .lab-overview-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.lab-consortium-workspace .lab-overview-head h2{margin:0 0 8px;color:#01122F;font-size:1.3rem}
+.lab-consortium-workspace .lab-overview-head p{margin:0;color:#536d89;line-height:1.6}
+.lab-consortium-workspace .dash-action{background:#FDC102;color:#01122F;border:1px solid #ebaf00;border-radius:9px;padding:10px 15px;font-weight:850;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.lab-consortium-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.lab-consortium-kpis>div,.lab-consortium-summary>div{border:1px solid #dce5ef;border-radius:12px;background:#f8fafc;padding:16px;display:grid;gap:8px;min-width:0}
+.lab-consortium-kpis span,.lab-consortium-summary small{font-size:.8rem;color:#5e7290}
+.lab-consortium-kpis strong{color:#01122F;font-size:1.75rem}
+.lab-consortium-summary strong{color:#01122F;font-size:.94rem;overflow-wrap:anywhere}
+.lab-consortium-directory{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.lab-consortium-program,.lab-consortium-empty,.lab-consortium-editor,.lab-consortium-panel,.lab-consortium-regulatory{border:1px solid #dce5ef;border-radius:14px;background:#fff;padding:21px;min-width:0}
+.lab-consortium-program{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;flex-wrap:wrap}
+.lab-consortium-program h3{margin:0;font-size:1.05rem;color:#01122F}
+.lab-consortium-program p{margin:11px 0;color:#566f8a;font-size:.86rem}
+.lab-consortium-program-head{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.lab-consortium-status{font-size:.73rem;font-weight:850;padding:6px 9px;border-radius:999px;background:#eaf1fa;color:#183b68}
+.lab-consortium-meta{display:flex;gap:7px 15px;flex-wrap:wrap;color:#627a95;font-size:.8rem}
+.lab-consortium-empty{grid-column:1/-1;text-align:center;padding:36px 20px}
+.lab-consortium-empty h3{color:#01122F;margin:0 0 9px}
+.lab-consortium-empty p{color:#566f8a}
+.lab-consortium-editor{display:grid;gap:20px}
+.lab-consortium-toolbar,.lab-consortium-detail-actions,.lab-consortium-form-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lab-consortium-toolbar h3{font-size:1.2rem;margin:0;color:#01122F}
+.lab-consortium-detail-actions{padding:0 0 14px;border-bottom:1px solid #dce5ef}
+.lab-consortium-form{display:grid;gap:18px}
+.lab-consortium-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.lab-consortium-field{display:grid;gap:7px;font-size:.84rem;font-weight:800;color:#01122F;min-width:0}
+.lab-consortium-field.full{grid-column:1/-1}
+.lab-consortium-field input,.lab-consortium-field select,.lab-consortium-field textarea{min-height:42px;width:100%;border:1px solid #c9d7e7;border-radius:9px;padding:10px 12px;background:#fff;color:#01122F;font:inherit;font-weight:500}
+.lab-consortium-field textarea{resize:vertical}
+.lab-consortium-field input:focus,.lab-consortium-field select:focus,.lab-consortium-field textarea:focus{outline:2px solid #FDC102;outline-offset:1px}
+.lab-consortium-help,.lab-consortium-regulatory p{font-size:.85rem;line-height:1.7;color:#526e89;margin:0}
+.lab-consortium-regulatory{background:#f7f9fc}
+.lab-consortium-regulatory h3,.lab-consortium-panel h3{font-size:1rem;margin:0 0 9px;color:#01122F}
+.lab-consortium-panel>p{color:#657a94;line-height:1.6}
+.lab-consortium-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.lab-consortium-panel{padding:20px}
+.lab-consortium-panel .results-table-wrap{overflow:auto}
+.lab-consortium-panel table{min-width:620px}
+.lab-consortium-panel td{vertical-align:middle}
+.lab-consortium-panel td small{display:block;color:#6b8098;margin-top:4px}
+.lab-consortium-timeline{display:grid;gap:9px}
+.lab-consortium-timeline p{margin:0;border-bottom:1px solid #e8eef5;padding:10px 0;font-size:.82rem;color:#536d89}
+.lab-consortium-timeline p span{display:block;margin-top:4px}
+.lab-consortium-danger{border-color:#b94242!important;color:#a32525!important;background:#fff5f5!important}
+.lab-consortium-delete-panel{border-color:#e6aaaa;background:#fffafa}
+.lab-consortium-delete-panel>p{max-width:850px;line-height:1.7}
+.lab-consortium-delete-panel .lab-consortium-field{max-width:600px;margin:15px 0}
+.lab-consortium-checkbox{display:flex;align-items:flex-start;gap:10px;color:#263b56;font-size:.85rem}
+.lab-consortium-checkbox input{margin-top:2px}
+.lab-consortium-error{border-color:#df8f8f!important;background:#fff1f1!important;color:#a02c2c!important}
+.lab-consortium-workspace [hidden]{display:none!important}
+@media(max-width:990px){.lab-consortium-directory{grid-template-columns:1fr}.lab-consortium-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.lab-consortium-kpis{grid-template-columns:1fr}.lab-consortium-summary,.lab-consortium-form-grid{grid-template-columns:1fr}.lab-consortium-toolbar,.lab-consortium-detail-actions{align-items:stretch}.lab-consortium-toolbar h3{flex-basis:100%}.lab-consortium-field.full{grid-column:auto}.lab-consortium-program,.lab-consortium-empty,.lab-consortium-editor,.lab-consortium-panel{padding:15px}.lab-consortium-detail-actions button,.lab-consortium-form-actions button{width:100%}}
