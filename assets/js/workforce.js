@@ -644,6 +644,141 @@ const premiumFields={
  document_type:'Document type',contact_email:'Contact email',dot_number:'USDOT number (if applicable)',
  template_type:'Template type',audit_period:'Audit period'
 };
+
+const consortiumMarkup=()=>{
+ if(activeEntitlement?.features?.consortium!==true)return '<div class="premium-locked"><h2>Consortium Management</h2><p>Your Lab Account requires an active consortium plan or eligible add-on to create and manage pools.</p><a href="/store.html" class="dash-action">View consortium plans</a></div>';
+ return '<div class="lab-consortium-workspace" id="labConsortiumWorkspace">'+
+  '<div class="lab-overview-head"><div><h2>My Consortium Programs</h2><p>Create and manage your own DOT and NON-DOT consortium programs, participant rosters, schedules and exported records.</p></div><button type="button" id="consortiumNew" class="dash-action">+ Create Consortium</button></div>'+
+  '<div class="lab-consortium-kpis" id="consortiumKpis"><div><span>Programs</span><strong>—</strong></div><div><span>Participants</span><strong>—</strong></div><div><span>Active programs</span><strong>—</strong></div></div>'+
+  '<p id="consortiumNotice" class="results-message" role="status" aria-live="polite">Loading your consortium programs…</p>'+
+  '<section id="consortiumDirectory" class="lab-consortium-directory" aria-label="Your consortium programs"></section>'+
+  '<section id="consortiumEditor" class="lab-consortium-editor" hidden></section>'+
+  '<section class="lab-consortium-regulatory"><h3>Consortium program records</h3><p>Program configurations and participant records are managed by you. DOT random testing rates, official selection events, actual laboratory test results, and required retention records are managed separately and are not changed or deleted by this page.</p></section>'+
+  '</div>';
+};
+async function initConsortiumManager(){
+ const root=document.querySelector('#labConsortiumWorkspace');if(!root)return;
+ const notice=root.querySelector('#consortiumNotice'),directory=root.querySelector('#consortiumDirectory'),editor=root.querySelector('#consortiumEditor'),kpis=root.querySelector('#consortiumKpis');
+ let programs=[],selected=null,detail=null;
+ const esc=escape;
+ const today=()=>new Date().toLocaleDateString('en-CA');
+ const fmt=x=>x?new Date(x+'T12:00:00').toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):'—';
+ const status=x=>x==='active'?'Active':x==='paused'?'Paused':'Draft';
+ const field=(label,name,value='',type='text',extra='')=>'<label class="lab-consortium-field"><span>'+esc(label)+'</span><input type="'+type+'" name="'+name+'" value="'+esc(value)+'" '+extra+'></label>';
+ const select=(label,name,values,value)=>'<label class="lab-consortium-field"><span>'+esc(label)+'</span><select name="'+name+'">'+values.map(x=>'<option value="'+esc(x[0])+'"'+(x[0]===value?' selected':'')+'>'+esc(x[1])+'</option>').join('')+'</select></label>';
+ const message=(s,error=false)=>{notice.textContent=s;notice.classList.toggle('lab-consortium-error',error)};
+ const call=async(data)=>{
+  const {data:{session}}=await window.labAccountClient.auth.getSession();if(!session)throw Error('Session expired. Sign in again.');
+  const r=await fetch(cfg.supabaseUrl+'/functions/v1/lab-customer-consortiums',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',apikey:cfg.supabasePublishableKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify(data)});
+  const result=await r.json().catch(()=>({}));if(!r.ok||result.error)throw Error(result.error||'Unable to complete your request');return result;
+ };
+ const renderList=()=>{
+  const active=programs.filter(x=>x.status==='active').length;
+  const participants=programs.reduce((sum,x)=>sum+(x.member_count||0),0);
+  kpis.innerHTML=[['Programs',programs.length],['Participants',participants],['Active programs',active]].map(x=>'<div><span>'+esc(x[0])+'</span><strong>'+x[1]+'</strong></div>').join('');
+  if(!programs.length){directory.innerHTML='<div class="lab-consortium-empty"><h3>No consortium programs yet</h3><p>Create your first program to start managing an eligible participant roster.</p><button type="button" data-consortium-action="new" class="dash-action">Create a Consortium</button></div>';return}
+  directory.innerHTML=programs.map(x=>'<article class="lab-consortium-program"><div><div class="lab-consortium-program-head"><h3>'+esc(x.name)+'</h3><span class="lab-consortium-status">'+esc(status(x.status))+'</span></div><p>'+esc(x.program_type)+(x.dot_agency?' · '+esc(x.dot_agency):'')+' · '+esc(x.selection_schedule)+' selection schedule</p><div class="lab-consortium-meta"><span>'+Number(x.member_count||0)+' participants</span><span>'+Number(x.eligible_count||0)+' eligible</span><span>Effective '+fmt(x.effective_date)+'</span></div></div><button type="button" class="signout" data-consortium-action="open" data-id="'+esc(x.id)+'">Manage program</button></article>').join('');
+ };
+ const load=async()=>{const d=await call({action:'list'});programs=d.programs||[];renderList();message(programs.length?programs.length+' consortium program(s) available.':'You can create your first consortium program.')};
+ const showList=()=>{selected=null;detail=null;editor.hidden=true;directory.hidden=false;root.querySelector('#consortiumNew').hidden=false};
+ const openForm=(program=null)=>{
+  selected=program?.id||null;detail=null;directory.hidden=true;editor.hidden=false;root.querySelector('#consortiumNew').hidden=true;
+  const dot=program?.program_type==='DOT';
+  editor.innerHTML='<div class="lab-consortium-toolbar"><button type="button" class="signout" data-consortium-action="back">← Back to programs</button><h3>'+(program?'Edit Consortium':'Create Consortium')+'</h3></div><form id="consortiumProgramForm" class="lab-consortium-form"><div class="lab-consortium-form-grid">'+
+   field('Consortium program name','name',program?.name||'','text','required minlength="2" maxlength="160"')+
+   select('Testing program','program_type',[['DOT','DOT regulated'],['NON-DOT','NON-DOT']],program?.program_type||'DOT')+
+   '<div class="lab-consortium-agency">'+select('DOT agency','dot_agency',[['','Select agency'],...['FMCSA','FAA','FRA','FTA','PHMSA','USCG'].map(x=>[x,x])],program?.dot_agency||'')+'</div>'+
+   select('Selection schedule','selection_schedule',[['monthly','Monthly'],['quarterly','Quarterly'],['semiannual','Semiannual'],['annual','Annual']],program?.selection_schedule||'quarterly')+
+   field('Effective date','effective_date',program?.effective_date||today(),'date','required')+
+   select('Program status','status',[['draft','Draft'],['active','Active'],['paused','Paused']],program?.status||'draft')+
+   '<label class="lab-consortium-field full"><span>Program notes</span><textarea name="notes" maxlength="1000" rows="3">'+esc(program?.notes||'')+'</textarea></label></div>'+
+   '<div class="lab-consortium-form-actions"><button type="submit" class="dash-action">'+(program?'Save changes':'Create program')+'</button><button type="button" class="signout" data-consortium-action="back">Cancel</button></div></form>'+
+   '<p class="lab-consortium-help">Regulated DOT testing rates are determined by the applicable agency. Program configuration does not itself carry out a random selection or issue a test order.</p>';
+  const form=editor.querySelector('#consortiumProgramForm');
+  const updateAgency=()=>{const agency=editor.querySelector('.lab-consortium-agency');agency.hidden=form.elements.program_type.value!=='DOT';form.elements.dot_agency.required=!agency.hidden};
+  form.elements.program_type.addEventListener('change',updateAgency);updateAgency();
+  form.addEventListener('submit',async e=>{
+   e.preventDefault();const button=form.querySelector('[type="submit"]');button.disabled=true;
+   const program=Object.fromEntries(new FormData(form));if(program.program_type!=='DOT')program.dot_agency=null;
+   try{const saved=await call({action:selected?'update':'create',id:selected,program});await load();message('Consortium program saved.');await openDetail(saved.program.id)}catch(err){message(err.message||'Unable to save program',true)}finally{button.disabled=false}
+  });
+ };
+ const openDetail=async id=>{
+  const d=await call({action:'detail',id});selected=id;detail=d;const p=d.program;
+  directory.hidden=true;editor.hidden=false;root.querySelector('#consortiumNew').hidden=true;
+  const memberRows=(d.members||[]).length?d.members.map(m=>'<tr><td><strong>'+esc(m.first_name+' '+m.last_name)+'</strong><small>'+esc(m.employee_reference||'')+'</small></td><td>'+esc(m.email||'—')+'</td><td>'+esc(m.eligibility_status)+'</td><td>'+fmt(m.joined_on)+'</td><td><button type="button" class="signout" data-consortium-action="edit-member" data-member-id="'+esc(m.id)+'">Edit</button> <button type="button" class="signout lab-consortium-danger" data-consortium-action="remove-member" data-member-id="'+esc(m.id)+'">Remove</button></td></tr>').join(''):'<tr><td colspan="5">No participants added yet.</td></tr>';
+  editor.innerHTML='<div class="lab-consortium-toolbar"><button type="button" class="signout" data-consortium-action="back">← All programs</button><h3>'+esc(p.name)+'</h3><span class="lab-consortium-status">'+esc(status(p.status))+'</span></div>'+
+  '<div class="lab-consortium-detail-actions"><button type="button" class="dash-action" data-consortium-action="add-member">+ Add participant</button><button type="button" class="signout" data-consortium-action="edit">Edit program</button><button type="button" class="signout" data-consortium-action="export">Download all records (CSV)</button><button type="button" class="signout lab-consortium-danger" data-consortium-action="delete">Delete consortium</button></div>'+
+  '<div class="lab-consortium-summary"><div><small>Program</small><strong>'+esc(p.program_type)+(p.dot_agency?' · '+esc(p.dot_agency):'')+'</strong></div><div><small>Selection schedule</small><strong>'+esc(p.selection_schedule)+'</strong></div><div><small>Effective date</small><strong>'+fmt(p.effective_date)+'</strong></div><div><small>Participants</small><strong>'+d.members.length+'</strong></div></div>'+
+  '<section class="lab-consortium-panel"><h3>Participant roster</h3><p>Manage people enrolled in this customer-managed program.</p><div class="results-table-wrap"><table class="results-table"><thead><tr><th>Participant</th><th>Email</th><th>Eligibility</th><th>Joined</th><th>Actions</th></tr></thead><tbody>'+memberRows+'</tbody></table></div></section>'+
+  '<section class="lab-consortium-panel"><h3>Program activity</h3><div class="lab-consortium-timeline">'+(d.events.length?d.events.slice().reverse().slice(0,25).map(x=>'<p><strong>'+esc(x.event_type.replaceAll('_',' '))+'</strong> · '+new Date(x.created_at).toLocaleString('en-US')+'<span>'+esc(x.summary)+'</span></p>').join(''):'<p>No recorded activity yet.</p>')+'</div></section>'+
+  '<div id="consortiumInline"></div>';
+ };
+ const memberForm=(member=null)=>{
+  if(!selected)return;
+  const panel=editor.querySelector('#consortiumInline');if(!panel)return;
+  panel.innerHTML='<section class="lab-consortium-panel"><h3>'+(member?'Edit participant':'Add participant')+'</h3><form id="consortiumMemberForm" class="lab-consortium-form"><div class="lab-consortium-form-grid">'+
+   field('First name','first_name',member?.first_name||'','text','required maxlength="100"')+field('Last name','last_name',member?.last_name||'','text','required maxlength="100"')+
+   field('Employee reference','employee_reference',member?.employee_reference||'','text','maxlength="100"')+
+   field('Email (optional)','email',member?.email||'','email','maxlength="200"')+
+   field('Joined date','joined_on',member?.joined_on||today(),'date','required')+
+   select('Eligibility','eligibility_status',[['eligible','Eligible'],['inactive','Inactive']],member?.eligibility_status||'eligible')+
+   '</div><div class="lab-consortium-form-actions"><button class="dash-action" type="submit">'+(member?'Save participant':'Add participant')+'</button><button type="button" class="signout" data-consortium-action="cancel-inline">Cancel</button></div></form></section>';
+  panel.scrollIntoView({block:'nearest',behavior:'smooth'});
+  const form=panel.querySelector('form');form.addEventListener('submit',async e=>{
+   e.preventDefault();const btn=form.querySelector('[type="submit"]');btn.disabled=true;
+   try{await call({action:member?'update_member':'add_member',id:selected,member_id:member?.id,member:Object.fromEntries(new FormData(form))});await load();await openDetail(selected);message('Participant saved.')}catch(err){message(err.message||'Unable to save participant',true)}finally{btn.disabled=false}
+  });
+ };
+ const download=async()=>{
+  if(!selected)throw Error('Choose a program first');
+  const d=await call({action:'export',id:selected});
+  const columns=['record_type','program_id','program_name','program_type','dot_agency','selection_schedule','effective_date','program_status','member_id','first_name','last_name','employee_reference','email','eligibility_status','joined_on','event_type','event_summary','event_at'];
+  const rows=[{record_type:'program',program_id:d.program.id,program_name:d.program.name,program_type:d.program.program_type,dot_agency:d.program.dot_agency,selection_schedule:d.program.selection_schedule,effective_date:d.program.effective_date,program_status:d.program.status}];
+  (d.members||[]).forEach(m=>rows.push({record_type:'participant',program_id:d.program.id,program_name:d.program.name,member_id:m.id,first_name:m.first_name,last_name:m.last_name,employee_reference:m.employee_reference,email:m.email,eligibility_status:m.eligibility_status,joined_on:m.joined_on}));
+  (d.events||[]).forEach(x=>rows.push({record_type:'activity',program_id:d.program.id,program_name:d.program.name,event_type:x.event_type,event_summary:x.summary,event_at:x.created_at}));
+  const csvSafe=x=>{let val=String(x??'');if(/^[\\s]*[=+@\\-]/.test(val))val="'"+val;return '"'+val.replaceAll('"','""')+'"'};
+  const csv='\\uFEFF'+[columns.join(','),...rows.map(row=>columns.map(k=>csvSafe(row[k])).join(','))].join('\\r\\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='consortium-'+String(d.program.name).toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,60)+'-records.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  message('CSV records export started. Keep the file before deleting the program. Separate official testing and retention records are not included.');
+  await openDetail(selected);
+ };
+ const showDelete=()=>{
+  if(!detail||!selected)return;
+  const p=detail.program,panel=editor.querySelector('#consortiumInline');if(!panel)return;
+  panel.innerHTML='<section class="lab-consortium-panel lab-consortium-delete-panel"><h3>Delete '+esc(p.name)+'?</h3><p><strong>Permanent deletion warning:</strong> The consortium program, its customer-managed participant entries, and its activity events will be permanently deleted and cannot be restored. Download all your records using the CSV button first.</p><p>Official testing records, random selection audit histories, and other legally retained records held separately are not deleted.</p><button type="button" class="signout" data-consortium-action="export">Download all your records (CSV)</button><label class="lab-consortium-field"><span>Type DELETE '+esc(p.name)+' to confirm</span><input id="consortiumConfirmDelete" type="text" autocomplete="off"></label><label class="lab-consortium-checkbox"><input id="consortiumDeleteAck" type="checkbox"> I understand the customer-managed records will be permanently deleted.</label><div class="lab-consortium-form-actions"><button type="button" class="signout lab-consortium-danger" data-consortium-action="confirm-delete">Permanently delete consortium</button><button type="button" class="signout" data-consortium-action="cancel-inline">Cancel</button></div></section>';
+  panel.scrollIntoView({block:'nearest',behavior:'smooth'});
+ };
+ root.addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-consortium-action]');if(!btn)return;const action=btn.dataset.consortiumAction,id=btn.dataset.id;
+  try{
+   if(action==='new')return openForm();
+   if(action==='back'){showList();return}
+   if(action==='open')return await openDetail(id);
+   if(action==='edit')return openForm(detail.program);
+   if(action==='add-member')return memberForm();
+   if(action==='edit-member')return memberForm((detail.members||[]).find(x=>x.id===btn.dataset.memberId));
+   if(action==='cancel-inline'){editor.querySelector('#consortiumInline')?.replaceChildren();return}
+   if(action==='delete')return showDelete();
+   if(action==='export'){btn.disabled=true;try{await download()}finally{btn.disabled=false}return}
+   if(action==='remove-member'){
+    if(!confirm('Remove this participant from the customer-managed consortium roster?'))return;
+    await call({action:'remove_member',id:selected,member_id:btn.dataset.memberId});await load();await openDetail(selected);message('Participant removed.');return;
+   }
+   if(action==='confirm-delete'){
+    const confirmation=editor.querySelector('#consortiumConfirmDelete')?.value||'',ack=editor.querySelector('#consortiumDeleteAck')?.checked;
+    if(!ack)throw Error('Confirm that you understand this deletion is permanent');
+    btn.disabled=true;try{
+     await call({action:'delete',id:selected,confirm:confirmation});showList();await load();message('Consortium permanently deleted. Separate official testing and retained compliance records were not deleted.');
+    }finally{btn.disabled=false}
+   }
+  }catch(err){message(err.message||'Unable to process the request',true)}
+ });
+ root.querySelector('#consortiumNew').addEventListener('click',()=>openForm());
+ try{await load()}catch(err){message(err.message||'Unable to load consortium programs',true)}
+}
+
 const premiumMarkup=()=>{
  const config=PREMIUM_SERVICES[current];
  const allowed=activeEntitlement?.features?.[current==='consortium'?'consortium':'compliance_docs']===true;
@@ -759,8 +894,8 @@ const render=(user,intake={})=>{
   return '<div class="nav-section"><div class="nav-section-title" role="heading" aria-level="2">'+escape(section.title)+'</div>'+
    items.map(r=>'<a href="'+r.url+'"'+(r.key===activeNavigationPage?' class="active" aria-current="page"':'')+'><span class="ico" aria-hidden="true">'+(icons[r.key]||'•')+'</span><span>'+escape(r.label)+'</span></a>').join('')+'</div>';
  }).join('');
- document.querySelector('#workspace').innerHTML='<div class="app"><aside class="side" id="side"><div class="brand"><img src="https://workforce.screenings4u.com/images/logo2.png" alt="Workforce"></div><nav class="nav" id="sideNavigation" aria-label="Workforce navigation"><div class="nav-title">Workforce · Lab Account</div>'+links+'</nav><div class="side-foot"><small>Portal</small><strong>Workforce Lab Account</strong></div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" aria-controls="side" aria-expanded="true" title="Hide sidebar">‹<span class="sr-only">Hide sidebar</span></button><div class="main"><header class="top"><div class="top-left"><button type="button" class="menu" id="menu" aria-label="Open navigation" aria-controls="mobileNav" aria-expanded="false">☰</button><div class="top-context"><span class="top-eyebrow">Workforce · Lab Account</span><span class="crumb">'+escape(page)+'</span></div></div><div class="top-right"><div class="portal-clock"><span id="portalClockDate"></span><strong id="portalClockTime"></strong></div><div class="top-utility-group"><span class="top-utility-label">Text size</span><div class="font-sizer"><button id="fontDown" type="button" aria-label="Decrease text size">A−</button><button class="font-reset" id="fontSizeValue" type="button" aria-label="Reset text size">Default</button><button id="fontUp" type="button" aria-label="Increase text size">A+</button></div></div><span class="pill">Workforce</span><a href="https://workforceapps.screenings4u.com/selector.html" class="switch-portal">↔ Switch Portal</a><button id="logout" class="signout" type="button">Sign out</button></div></header><section class="mobile-nav" id="mobileNav" aria-hidden="true"><nav class="mobile-nav-links" aria-label="Mobile Workforce navigation">'+links+'</nav></section><div class="content"><section class="hero"><span class="hero-kicker">Workforce · Lab Account</span><h1>'+escape(page)+'</h1><p>Manage your Lab Account workspace securely.</p></section><section class="section"><div class="panel"><div class="panel-head"><h2>'+escape(page)+'</h2></div><div class="panel-body">'+(current==='donor-pass-view'?donorPassMarkup():current==='supply-request'?supplyRequestMarkup():current==='support-ticket'?supportTicketMarkup():current==='testing-order-edit'?testingOrderEditMarkup():detailSpec[current]?detailMarkup():current==='dashboard'?dashboardMarkup(intake):current==='lab-accounts'?labAccountsMarkup():current==='results'?resultsMarkup():current==='billing'?billingMarkup():current==='documents'?documentsMarkup():current==='supplies'?suppliesMarkup():current==='testing-order'?testingOrdersMarkup():current==='specimen-shipment'?specimenShipmentMarkup():current==='order-history'?orderHistoryMarkup():current==='create-testing-order'?newTestingOrderMarkup():current==='support'?supportMarkup():current==='store'?storeMarkup():PREMIUM_SERVICES[current]?premiumMarkup():ADVANCED_FEATURES[current]?advancedMarkup():'<p>This section is ready for account-specific data and workflows.</p><a href="/dashboard.html">Return to dashboard</a>')+'</div></div></section></div></div></div>';
- if(current==='donor-pass-view')initDonorPass();if(current==='supply-request')initSupplyRequest();if(current==='support-ticket')initSupportTicket();if(current==='testing-order-edit')initTestingOrderEdit();if(detailSpec[current])loadRecordDetail();if(current==='store')initLabStore();if(PREMIUM_SERVICES[current])initPremiumServices();if(ADVANCED_FEATURES[current])initAdvancedFeature();if(current==='dashboard')initDashboardPlan();if(current==='lab-accounts')loadLabAccounts();if(current==='support')initSupport();if(current==='create-testing-order')initNewTestingOrder();if(current==='order-history'){loadOrderHistory();document.querySelector('#refreshOrderHistory')?.addEventListener('click',loadOrderHistory)}if(current==='specimen-shipment')initSpecimenShipment();if(current==='testing-order'){loadTestingOrders();document.querySelector('#refreshTestingOrders')?.addEventListener('click',loadTestingOrders)}if(current==='supplies')initSupplies();if(current==='documents'){loadDocuments();document.querySelector('#refreshDocuments')?.addEventListener('click',loadDocuments)}if(current==='billing'){loadBilling();document.querySelector('#refreshBilling')?.addEventListener('click',loadBilling)}if(current==='results'){loadResults();document.querySelector('#refreshResults')?.addEventListener('click',loadResults)}
+ document.querySelector('#workspace').innerHTML='<div class="app"><aside class="side" id="side"><div class="brand"><img src="https://workforce.screenings4u.com/images/logo2.png" alt="Workforce"></div><nav class="nav" id="sideNavigation" aria-label="Workforce navigation"><div class="nav-title">Workforce · Lab Account</div>'+links+'</nav><div class="side-foot"><small>Portal</small><strong>Workforce Lab Account</strong></div></aside><button id="sidebarToggle" class="sidebar-toggle" type="button" aria-controls="side" aria-expanded="true" title="Hide sidebar">‹<span class="sr-only">Hide sidebar</span></button><div class="main"><header class="top"><div class="top-left"><button type="button" class="menu" id="menu" aria-label="Open navigation" aria-controls="mobileNav" aria-expanded="false">☰</button><div class="top-context"><span class="top-eyebrow">Workforce · Lab Account</span><span class="crumb">'+escape(page)+'</span></div></div><div class="top-right"><div class="portal-clock"><span id="portalClockDate"></span><strong id="portalClockTime"></strong></div><div class="top-utility-group"><span class="top-utility-label">Text size</span><div class="font-sizer"><button id="fontDown" type="button" aria-label="Decrease text size">A−</button><button class="font-reset" id="fontSizeValue" type="button" aria-label="Reset text size">Default</button><button id="fontUp" type="button" aria-label="Increase text size">A+</button></div></div><span class="pill">Workforce</span><a href="https://workforceapps.screenings4u.com/selector.html" class="switch-portal">↔ Switch Portal</a><button id="logout" class="signout" type="button">Sign out</button></div></header><section class="mobile-nav" id="mobileNav" aria-hidden="true"><nav class="mobile-nav-links" aria-label="Mobile Workforce navigation">'+links+'</nav></section><div class="content"><section class="hero"><span class="hero-kicker">Workforce · Lab Account</span><h1>'+escape(page)+'</h1><p>Manage your Lab Account workspace securely.</p></section><section class="section"><div class="panel"><div class="panel-head"><h2>'+escape(page)+'</h2></div><div class="panel-body">'+(current==='donor-pass-view'?donorPassMarkup():current==='supply-request'?supplyRequestMarkup():current==='support-ticket'?supportTicketMarkup():current==='testing-order-edit'?testingOrderEditMarkup():detailSpec[current]?detailMarkup():current==='dashboard'?dashboardMarkup(intake):current==='lab-accounts'?labAccountsMarkup():current==='results'?resultsMarkup():current==='billing'?billingMarkup():current==='documents'?documentsMarkup():current==='supplies'?suppliesMarkup():current==='testing-order'?testingOrdersMarkup():current==='specimen-shipment'?specimenShipmentMarkup():current==='order-history'?orderHistoryMarkup():current==='create-testing-order'?newTestingOrderMarkup():current==='support'?supportMarkup():current==='store'?storeMarkup():current==='consortium'?consortiumMarkup():PREMIUM_SERVICES[current]?premiumMarkup():ADVANCED_FEATURES[current]?advancedMarkup():'<p>This section is ready for account-specific data and workflows.</p><a href="/dashboard.html">Return to dashboard</a>')+'</div></div></section></div></div></div>';
+ if(current==='donor-pass-view')initDonorPass();if(current==='supply-request')initSupplyRequest();if(current==='support-ticket')initSupportTicket();if(current==='testing-order-edit')initTestingOrderEdit();if(detailSpec[current])loadRecordDetail();if(current==='store')initLabStore();if(current==='consortium')initConsortiumManager();else if(PREMIUM_SERVICES[current])initPremiumServices();if(ADVANCED_FEATURES[current])initAdvancedFeature();if(current==='dashboard')initDashboardPlan();if(current==='lab-accounts')loadLabAccounts();if(current==='support')initSupport();if(current==='create-testing-order')initNewTestingOrder();if(current==='order-history'){loadOrderHistory();document.querySelector('#refreshOrderHistory')?.addEventListener('click',loadOrderHistory)}if(current==='specimen-shipment')initSpecimenShipment();if(current==='testing-order'){loadTestingOrders();document.querySelector('#refreshTestingOrders')?.addEventListener('click',loadTestingOrders)}if(current==='supplies')initSupplies();if(current==='documents'){loadDocuments();document.querySelector('#refreshDocuments')?.addEventListener('click',loadDocuments)}if(current==='billing'){loadBilling();document.querySelector('#refreshBilling')?.addEventListener('click',loadBilling)}if(current==='results'){loadResults();document.querySelector('#refreshResults')?.addEventListener('click',loadResults)}
  // Keep the selected route visible even when the navigation exceeds screen height.
  const side=document.querySelector('#side'),sideNav=document.querySelector('#sideNavigation'),sideToggle=document.querySelector('#sidebarToggle');
  const navActive=sideNav?.querySelector('a[aria-current="page"]');
