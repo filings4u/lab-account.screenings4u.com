@@ -652,7 +652,7 @@ const consortiumMarkup=()=>{
   '<div class="lab-consortium-kpis" id="consortiumKpis"><div><span>Programs</span><strong>—</strong></div><div><span>Participants</span><strong>—</strong></div><div><span>Active programs</span><strong>—</strong></div></div>'+
   '<p id="consortiumNotice" class="results-message" role="status" aria-live="polite">Loading your consortium programs…</p>'+
   '<section id="consortiumDirectory" class="lab-consortium-directory" aria-label="Your consortium programs"></section>'+
-  '<section id="consortiumLinkedPools" class="lab-consortium-panel" hidden></section>'+
+
   '<section id="consortiumEditor" class="lab-consortium-editor" hidden></section>'+
   '<section class="lab-consortium-regulatory" id="consortiumRegulatory"><h3>Consortium program records</h3><p>Program configurations and participant records are managed by you. DOT random testing rates, official selection events, actual laboratory test results, and required retention records are managed separately and are not changed or deleted by this page.</p></section>'+
   '</div>';
@@ -662,7 +662,7 @@ async function initConsortiumManager(){
  const notice=root.querySelector('#consortiumNotice'),directory=root.querySelector('#consortiumDirectory'),editor=root.querySelector('#consortiumEditor'),kpis=root.querySelector('#consortiumKpis');
  const mode=current==='consortium-form'?'form':current==='consortium-detail'?'detail':'overview';
  const routeId=new URLSearchParams(location.search).get('id');
- const overviewOnly=[root.querySelector('#consortiumOverviewHeader'),kpis,directory,root.querySelector('#consortiumLinkedPools')]; 
+ const overviewOnly=[root.querySelector('#consortiumOverviewHeader'),kpis,directory]; 
  if(mode!=='overview')overviewOnly.forEach(el=>{if(el)el.hidden=true});
  root.classList.toggle('lab-consortium-subpage',mode!=='overview');
  let programs=[],selected=null,detail=null;
@@ -685,18 +685,7 @@ async function initConsortiumManager(){
   if(!programs.length){directory.innerHTML='<div class="lab-consortium-empty"><h3>No consortium programs yet</h3><p>Create your first program to start managing an eligible participant roster.</p><a href="/consortium-form.html" class="dash-action">Create a Consortium</a></div>';return}
   directory.innerHTML=programs.map(x=>'<article class="lab-consortium-program"><div><div class="lab-consortium-program-head"><h3>'+esc(x.name)+'</h3><span class="lab-consortium-status">'+esc(status(x.status))+'</span></div><p>'+esc(x.program_type)+(x.dot_agency?' · '+esc(x.dot_agency):'')+' · '+esc(x.selection_schedule)+' selection schedule</p><div class="lab-consortium-meta"><span>'+Number(x.member_count||0)+' participants</span><span>'+Number(x.eligible_count||0)+' eligible</span><span>Effective '+fmt(x.effective_date)+'</span></div></div><a class="signout" href="/consortium-detail.html?id='+encodeURIComponent(x.id)+'">Manage program</a></article>').join('');
  };
- const loadLinkedPools=async()=>{
-  const panel=root.querySelector('#consortiumLinkedPools');if(!panel)return;
-  try{
-   const {data:{session}}=await window.labAccountClient.auth.getSession();if(!session)return;
-   const r=await fetch(cfg.supabaseUrl+'/functions/v1/lab-plan-services',{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.supabasePublishableKey,Authorization:'Bearer '+session.access_token},body:JSON.stringify({action:'overview'})});
-   const d=await r.json().catch(()=>({}));if(!r.ok||d.error||!Array.isArray(d.pools)||!d.pools.length){panel.hidden=true;return}
-   panel.hidden=false;
-   panel.innerHTML='<h3>Existing linked C/TPA pools</h3><p>These pools are part of the existing shared testing system. They remain visible here, but are not yet customer-managed programs in this workspace. Their official selection and testing histories are preserved separately.</p>'+
-   d.pools.map(p=>'<div class="lab-consortium-legacy"><strong>'+esc(p.name)+'</strong><span>'+esc(p.program_type||'DOT')+(p.dot_agency?' · '+esc(p.dot_agency):'')+' · '+esc(p.status||'active')+' · '+Number(p.active_participant_count||0)+' participants</span></div>').join('');
-  }catch(e){console.warn('Existing consortium pool overview unavailable',e)}
- };
- const load=async()=>{const d=await call({action:'list'});programs=d.programs||[];renderList();message(programs.length?programs.length+' customer-managed consortium program(s) available.':'Create your first customer-managed consortium program. Existing linked pools appear separately below.');loadLinkedPools()};
+ const load=async()=>{const d=await call({action:'list'});programs=d.programs||[];renderList();message(programs.length?programs.length+' customer-managed consortium program(s) available.':'Create your first consortium program.')};
  const showList=()=>{location.assign('/consortium.html')};
  const openForm=(program=null)=>{
   selected=program?.id||null;detail=null;directory.hidden=true;editor.hidden=false;root.querySelector('#consortiumNew').hidden=true;notice.hidden=true;
