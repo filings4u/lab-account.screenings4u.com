@@ -21,7 +21,7 @@ Deno.serve(async(req:Request)=>{
   if(authError||!user?.email_confirmed_at)return send({error:"Verified sign in required"},401);
   const entitlementResponse=await fetch(url+"/functions/v1/lab-account-entitlement",{method:"POST",headers:{"Authorization":"Bearer "+token,"apikey":pub,"Content-Type":"application/json"},body:"{}"});
   const entitlement=await entitlementResponse.json().catch(()=>({}));
-  if(!entitlementResponse.ok||entitlement.authorized!==true||entitlement.features?.consortium!==true)return send({error:"An active Lab Account consortium entitlement is required"},403);
+  if(!entitlementResponse.ok||entitlement.authorized!==true||entitlement.features?.consortium!==true||!Array.isArray(entitlement.feature_codes)||!entitlement.feature_codes.includes("consortium_pools"))return send({error:"An active purchased consortium entitlement is required"},403);
   const db=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
   const body=await req.json().catch(()=>({})),action=text(body.action||"list",40),uid=user.id;
   const own=async(id:unknown)=>{
