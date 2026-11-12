@@ -120,7 +120,7 @@ async function documentsCall(action,extra={}){
 }
 const documentSize=v=>{const n=Number(v);return !Number.isFinite(n)||n<=0?'PDF document':n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(1)+' MB'};
 const documentGroup=x=>x.source==='intake'||x.source==='attachment'?'submitted':x.category==='how_to'||x.category==='supplies'||x.document_type==='how_to_guide'||x.document_type==='supply_guide'?'guides':'account';
-const documentLabel=x=>({intake_form:'Submitted intake',account_document:'Account document',how_to_guide:'How-to guide',supply_guide:'Supply guide',compliance_document:'Compliance document',lab_account_setup:'Lab setup',lab_account:'Lab Account',lab_account_notice:'Account notice',lab_account_document:'Account document',lab_account_compliance:'Compliance',lab_account_howto:'How-to guide'})[x.document_type]||String(x.document_type||'Document').replaceAll('_',' ');
+const documentLabel=x=>({intake_form:'Submitted intake',account_document:'Account document',how_to_guide:'How-to guide',supply_guide:'Supply guide',compliance_document:'Compliance document',consortium_certificates:'Consortium certificate',audit_readiness_export:'Audit readiness package',compliance_documents:'Compliance documents',clearinghouse_setup:'Clearinghouse support',lab_account_setup:'Lab setup',lab_account:'Lab Account',lab_account_notice:'Account notice',lab_account_document:'Account document',lab_account_compliance:'Compliance',lab_account_howto:'How-to guide'})[x.document_type]||String(x.document_type||'Document').replaceAll('_',' ');
 function closeDocumentPreview(){
  const dialog=document.querySelector('#documentPreview');
  if(dialog?.open)dialog.close();
@@ -136,7 +136,7 @@ const base64PdfUrl=base64=>{
  return documentObjectURL;
 };
 async function getDocumentResource(item,download){
- const action=item.source==='intake'?'intake':item.source==='published'?'published':'download';
+ const action=item.source==='intake'?'intake':item.source==='published'?'published':item.source==='service'?'service':'download';
  const data=await documentsCall(action,{id:item.id,source:item.source,download});
  if(item.source==='intake'){if(!data.pdf_base64)throw Error('The intake PDF is unavailable');return {url:base64PdfUrl(data.pdf_base64),local:true,name:data.filename||'Workforce-Lab-Account-Intake.pdf',mime_type:'application/pdf'}}
  if(data.pdf_base64)return {url:base64PdfUrl(data.pdf_base64),local:true,name:data.filename||'Workforce-Lab-Account-Document.pdf',mime_type:'application/pdf'};
