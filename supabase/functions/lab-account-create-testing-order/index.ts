@@ -49,12 +49,33 @@ Deno.serve(async req=>{
    const orders=await db.from("orders").select("id,payment_status").in("id",candidates.map(x=>x.order_id));
    if(orders.error)throw orders.error;
    if(!(orders.data||[]).some(o=>o.payment_status==="paid"))return send({error:"A paid and active House Lab Account is required."},403);
-   const orgs=await db.from("organizations").select("id").ilike("primary_email",email).neq("status","archived").limit(2);
-   if(orgs.error)throw orgs.error;
-   if(orgs.data?.length!==1)return send({error:"The C/TPA organization needs verification before live testing."},403);
-   const ctpa=await db.from("ctpas").select("id,status").eq("organization_id",orgs.data[0].id).maybeSingle();
+   // The consolidated C/TPA must not infer company ownership from an email.
+   // Require an active company grant linked to this exact customer and paid order,
+   // followed by active organization membership and the authoritative C/TPA.
+   const paidOrders=new Set((orders.data||[])
+    .filter((o:any)=>o.payment_status==="paid").map((o:any)=>o.id));
+   const eligibleOrders=candidates.map((i:any)=>i.order_id).filter((id:any)=>paidOrders.has(id));
+   if(!eligibleOrders.length)return send({error:"A paid Lab Account purchase is required."},403);
+   const entitlements=await db.from("workforce_lab_company_entitlements")
+    .select("organization_id,ctpa_id,source_order_id")
+    .eq("entitlement_code","lab_account").eq("status","active")
+    .eq("linked_customer_user_id",user.id)
+    .in("source_order_id",eligibleOrders).limit(2);
+   if(entitlements.error)throw entitlements.error;
+   if(entitlements.data?.length!==1)return send({
+    error:"Your Lab Account company assignment must be verified before placing new testing requests."
+   },403);
+   const linked=entitlements.data[0];
+   const member=await db.from("organization_memberships").select("id")
+    .eq("organization_id",linked.organization_id).eq("user_id",user.id)
+    .eq("status","active").limit(1);
+   if(member.error)throw member.error;
+   if(!member.data?.length)return send({error:"You do not have active access to this company."},403);
+   const ctpa=await db.from("ctpas").select("id,organization_id,status")
+    .eq("id",linked.ctpa_id).eq("organization_id",linked.organization_id)
+    .eq("status","active").maybeSingle();
    if(ctpa.error)throw ctpa.error;
-   if(ctpa.data?.status!=="active")return send({error:"C/TPA operational access has not been activated."},403);
+   if(!ctpa.data)return send({error:"C/TPA operational access has not been activated."},403);
    const assigned=await db.from("ctpa_lab_accounts").select("id",{head:true,count:"exact"}).eq("ctpa_id",ctpa.data.id).eq("status","active");
    if(assigned.error)throw assigned.error;
    if(!assigned.count)return send({error:"No active laboratory account numbers are assigned to this C/TPA."},403);
@@ -66,7 +87,7 @@ Deno.serve(async req=>{
  if(meta.testing_scope==="dot"&&!["FMCSA","FAA","FRA","FTA","PHMSA","USCG"].includes(authority))return send({error:"Choose the required DOT authority"},400);
  const dob=str(body.date_of_birth);if(!/^\d{4}-\d{2}-\d{2}$/.test(dob)||Number.isNaN(Date.parse(dob))||new Date(dob)>new Date())return send({error:"Valid donor date of birth required"},400);
  const notes=str(body.notes).slice(0,1000),now=new Date().toISOString();
- const row=await db.from("testing_cases").insert({service_id:id,customer_user_id:user.id,customer_email:user.email,donor_name:first+" "+last,donor_email:donorEmail,donor_phone:str(body.donor_phone).slice(0,35)||null,dot_test:meta.testing_scope==="dot",dot_agency:authority||null,test_reason:reason,test_type:service.data.name,panel_name:service.data.name,priority:"normal",status:"awaiting_schedule",metadata:{source:"lab_account_portal",request_status:"submitted_for_management_review",labcorp_eligible:meta.labcorp_fulfillment===true,registration_submitted:false,request_notes:notes,donor_date_of_birth:dob,state_of_residence:state},created_by:user.id,created_at:now,updated_at:now}).select("id,case_number,status").single();if(row.error)throw row.error;
+ const row=await db.from("testing_cases").insert({service_id:id,customer_user_id:user.id,customer_email:user.email,donor_name:first+" "+last,donor_email:donorEmail,donor_phone:str(body.donor_phone).slice(0,35)||null,dot_test:meta.testing_scope==="dot",dot_agency:authority||null,test_reason:reason,test_type:service.data.name,panel_name:service.data.name,priority:"normal",status:"awaiting_schedule",metadata:{source:"lab_account_portal",ctpa_id:ctpa.data.id,organization_id:ctpa.data.organization_id,request_status:"submitted_for_management_review",labcorp_eligible:meta.labcorp_fulfillment===true,registration_submitted:false,request_notes:notes,donor_date_of_birth:dob,state_of_residence:state},created_by:user.id,created_at:now,updated_at:now}).select("id,case_number,status").single();if(row.error)throw row.error;
  const event=await db.from("testing_case_events").insert({id:crypto.randomUUID(),testing_case_id:row.data.id,event_type:"case_created",from_status:null,to_status:row.data.status,notes:"Lab Account testing request submitted for management processing",metadata:{source:"lab_account_portal"},actor_user_id:user.id,created_at:now});
  if(event.error)console.error("Case event write failed",event.error);
  // The case has already been committed. Email failures must not create duplicate cases on retries.
