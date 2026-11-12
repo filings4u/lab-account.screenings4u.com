@@ -18,13 +18,18 @@ Deno.serve(async(req:Request)=>{
  const featureCodesFor=async(plan:string,addon=false)=>{
   const skus=[plan];
   if(addon&&plan==="lab-account")skus.push("lab-account-random-consortium");
-  const links=await db.from("lab_portal_plan_features").select("feature_code").in("plan_sku",skus);
+  const links=await db.from("lab_portal_plan_features").select("feature_code,plan_sku").in("plan_sku",skus);
   if(links.error)throw links.error;
   const found=[...new Set((links.data||[]).map((r:any)=>r.feature_code))];
   if(!found.length)return [];
-  const catalog=await db.from("lab_portal_feature_catalog").select("feature_code,delivery_status").in("feature_code",found);
+  const catalog=await db.from("lab_portal_feature_catalog").select("feature_code,category,delivery_status").in("feature_code",found);
   if(catalog.error)throw catalog.error;
-  return (catalog.data||[]).filter((r:any)=>r.delivery_status==="available").map((r:any)=>r.feature_code);
+  const permitted=new Set((links.data||[]).filter((x:any)=>x.plan_sku===plan).map((x:any)=>x.feature_code));
+  if(addon&&plan==="lab-account"){
+   const consortiumOnly=new Set((catalog.data||[]).filter((x:any)=>x.category==="consortium").map((x:any)=>x.feature_code));
+   for(const x of links.data||[])if(x.plan_sku==="lab-account-random-consortium"&&consortiumOnly.has(x.feature_code))permitted.add(x.feature_code);
+  }
+  return (catalog.data||[]).filter((x:any)=>x.delivery_status==="available"&&permitted.has(x.feature_code)).map((x:any)=>x.feature_code);
  };
  const grant=await db.from("testing_customer_portal_access").select("status,metadata").eq("user_id",user.id).maybeSingle();
  if(grant.error)throw grant.error;
