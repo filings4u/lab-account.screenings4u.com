@@ -39,18 +39,23 @@ Deno.serve(async(req:Request)=>{
  const ownForms=()=>db.from("standalone_form_submissions").select("id,submission_number,form_title,status,created_at,payload").in("form_key",intakeKeys).or("customer_user_id.eq."+user.id+(user.email?",submitter_email.ilike."+user.email.replace(/[%_,]/g,""):"")).order("created_at",{ascending:false}).limit(150);
 
  if(action==="list"){
- const [d,published]=await Promise.all([db.from("documents").select(fields).eq("owner_user_id",user.id).in("document_type",allowedTypes).is("archived_at",null).order("created_at",{ascending:false}).limit(250),issued()]);
- if(published.error)throw published.error;
+ const [d,published,completed]=await Promise.all([
+ db.from("documents").select(fields).eq("owner_user_id",user.id).in("document_type",allowedTypes).is("archived_at",null).order("created_at",{ascending:false}).limit(250),
+ issued(),
+ db.from("lab_plan_service_requests").select("id,title,feature_code,document_name,document_bucket,document_path,fulfilled_at,created_at").eq("customer_user_id",user.id).eq("status","completed").not("document_path","is",null).order("created_at",{ascending:false}).limit(150)
+ ]);
+ if(published.error||completed.error)throw published.error||completed.error;
  if(d.error)throw d.error;
  const formResult=await ownForms();if(formResult.error)throw formResult.error;
  const forms=formResult.data||[],formIds=forms.map((x:any)=>x.id);
  const attached=formIds.length?await db.from("standalone_form_submission_files").select("id,submission_id,original_file_name,document_type,mime_type,byte_size,created_at,storage_bucket,storage_path").in("submission_id",formIds).limit(250):{data:[],error:null};
  if(attached.error)throw attached.error;
+ const serviceDocs=(completed.data||[]).filter((x:any)=>x.document_bucket==="testing-private-documents"&&String(x.document_path||"").startsWith("lab-plan-services/"+user.id+"/"+x.id+"/")).map((x:any)=>({id:x.id,title:x.title||"Completed service document",description:"Issued by Workforce testing operations",document_type:x.feature_code||"lab_account_document",source:"service",mime_type:"application/pdf",file_size:null,created_at:x.fulfilled_at||x.created_at,downloadable:true}));
  const staffDocs=(published.data||[]).map((x:any)=>({id:x.id,title:x.title,description:x.description,document_type:x.category==="how_to"?"how_to_guide":x.category==="account"?"account_document":x.category==="supplies"?"supply_guide":"compliance_document",category:x.category,source:"published",mime_type:x.mime_type,file_size:x.file_size,created_at:x.created_at,downloadable:true}));
  const ordinary=(d.data||[]).map((x:any)=>({id:x.id,title:x.title,description:x.description,document_type:x.document_type,source:"account",mime_type:x.mime_type,file_size:x.file_size,created_at:x.created_at,downloadable:!!(x.storage_bucket&&x.storage_path)}));
  const intakeDocs=forms.map((x:any)=>({id:x.id,title:x.form_title||"Lab Account Intake",description:"Submitted intake "+x.submission_number,document_type:"intake_form",source:"intake",mime_type:"application/pdf",file_size:null,created_at:x.created_at,downloadable:true}));
  const files=(attached.data||[]).map((x:any)=>({id:x.id,title:x.original_file_name||"Intake attachment",description:"Attached to Lab Account Intake",document_type:x.document_type||"intake_attachment",source:"attachment",mime_type:x.mime_type,file_size:x.byte_size,created_at:x.created_at,downloadable:!!(x.storage_bucket&&x.storage_path)}));
- return out({documents:[...staffDocs,...ordinary,...intakeDocs,...files].sort((a:any,b:any)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime())});
+ return out({documents:[...staffDocs,...serviceDocs,...ordinary,...intakeDocs,...files].sort((a:any,b:any)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime())});
  }
  if(action==="intake"){
   const id=String(body.id||"");if(!/^[0-9a-f-]{36}$/i.test(id))return out({error:"Invalid intake"},400);
@@ -90,6 +95,16 @@ Deno.serve(async(req:Request)=>{
    return out({pdf_base64:btoa(parts.join("")),filename:"Workforce-Lab-Account-Intake.pdf"});
   }
   return out({intake:{title:row.form_title||"Lab Account Intake",reference:row.submission_number,created_at:row.created_at,payload:row.payload||{}}});
+ }
+ if(action==="service"){
+  const id=String(body.id||"");
+  if(!/^[0-9a-f-]{36}$/i.test(id))return out({error:"Invalid service document"},400);
+  const record=await db.from("lab_plan_service_requests").select("id,title,status,document_bucket,document_path,document_name").eq("id",id).eq("customer_user_id",user.id).eq("status","completed").maybeSingle();
+  if(record.error)throw record.error;
+  if(!record.data||record.data.document_bucket!=="testing-private-documents"||!record.data.document_path?.startsWith("lab-plan-services/"+user.id+"/"+id+"/"))return out({error:"Completed document not available for this account"},404);
+  const signed=await db.storage.from("testing-private-documents").createSignedUrl(record.data.document_path,120,{download:body.download===true?record.data.document_name||"Workforce-Service-Document.pdf":undefined});
+  if(signed.error)throw signed.error;
+  return out({url:signed.data.signedUrl,title:record.data.title||"Completed document",mime_type:"application/pdf"});
  }
  if(action==="published"){
   const id=String(body.id||"");
