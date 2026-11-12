@@ -900,50 +900,57 @@ async function initPremiumServices(){
 }
 
 
-const trackingMarkup=()=>'<div class="lab-tracking-page"><div class="lab-overview-head"><div><h2>Lab Account Tracking</h2><p>See your purchased Lab Account orders, supply requests and shipments together, using the latest information recorded by Workforce Testing Management.</p></div><button type="button" class="signout" id="trackingRefresh">Refresh tracking</button></div><div id="trackingNotice" class="results-message" role="status">Loading tracking information…</div><div class="lab-tracking-kpis" id="trackingKpis"></div><div class="lab-tracking-filters"><label>Find a shipment or order<input id="trackingSearch" type="search" placeholder="Search order, carrier, or tracking number"></label><label>Type<select id="trackingCategory"><option value="all">All records</option><option value="supply">Supply requests</option><option value="shipment">House Lab shipments</option><option value="purchase">Lab purchases</option><option value="testing">Testing orders</option></select></label><label>Status<select id="trackingStatus"><option value="all">All statuses</option></select></label></div><div id="trackingRecords" class="lab-tracking-records" aria-live="polite"></div><p class="lab-tracking-note">Carrier links appear only when provided by Workforce. Detailed testing order workflows and laboratory results remain available on the Testing Orders and Results pages. This page does not show purchases from other Workforce portals.</p></div>';
+const trackingMarkup=()=>'<div class="lab-tracking-page"><div class="lab-overview-head"><div><h2>Supply Shipment Tracking</h2><p>Track physical supplies and House Lab shipments sent to your Lab Account. Carrier and tracking details are supplied by Workforce Testing Management.</p></div><button type="button" class="signout" id="trackingRefresh">Refresh shipments</button></div><div id="trackingNotice" class="results-message" role="status" aria-live="polite">Loading shipments…</div><div class="lab-tracking-kpis" id="trackingKpis"></div><div class="lab-tracking-filters"><label>Search shipments<input id="trackingSearch" type="search" placeholder="Supply item, carrier or tracking number"></label><label>Shipment status<select id="trackingStatus"><option value="all">All statuses</option></select></label></div><div id="trackingRecords" class="lab-tracking-records" aria-live="polite"></div><p class="lab-tracking-note">Tracking links open the carrier’s official website. Delivery updates are provided by the shipping carrier. Testing orders, purchases and laboratory results remain on their own portal pages.</p></div>';
 async function initTracking(){
  const root=document.querySelector('.lab-tracking-page');if(!root)return;
- const notice=root.querySelector('#trackingNotice'),records=root.querySelector('#trackingRecords'),kpis=root.querySelector('#trackingKpis'),search=root.querySelector('#trackingSearch'),kind=root.querySelector('#trackingCategory'),statusSelect=root.querySelector('#trackingStatus'),refresh=root.querySelector('#trackingRefresh');
+ const notice=root.querySelector('#trackingNotice'),records=root.querySelector('#trackingRecords'),kpis=root.querySelector('#trackingKpis'),search=root.querySelector('#trackingSearch'),statusSelect=root.querySelector('#trackingStatus'),refresh=root.querySelector('#trackingRefresh');
  let all=[];
- const fmt=v=>v?new Date(v).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):'—';
- const pretty=v=>String(v||'Pending').replaceAll('_',' ').replace(/\b\w/g,x=>x.toUpperCase());
- const view=()=>{
-  const q=search.value.trim().toLowerCase(),category=kind.value,status=statusSelect.value;
-  const shown=all.filter(x=>(category==='all'||category===x.kind)&&(status==='all'||status===x.status)&&(!q||[x.title,x.reference,x.description,x.carrier,x.tracking_number,x.status].some(y=>String(y||'').toLowerCase().includes(q))));
-  records.innerHTML=shown.map(x=>{
-   const track=(x.tracking_url&&/^https:\/\//i.test(x.tracking_url))?'<a class="lab-tracking-button" target="_blank" rel="noopener noreferrer" href="'+escape(x.tracking_url)+'">Track with carrier</a>':'';
-   const details=x.detail_url?'<a class="lab-tracking-button" href="'+escape(x.detail_url)+'">View order</a>':'';
-   return '<article class="lab-tracking-record"><div class="lab-tracking-record-title"><div><span class="lab-tracking-kind">'+escape(x.kind==='shipment'?'House Lab shipment':x.kind==='supply'?'Supply request':x.kind==='testing'?'Testing order':'Lab purchase')+'</span><h3>'+escape(x.title)+'</h3><p>'+escape(x.description||'')+'</p></div><span class="lab-tracking-status">'+escape(pretty(x.status))+'</span></div><div class="lab-tracking-details"><div><small>Reference</small><strong>'+escape(x.reference||'—')+'</strong></div><div><small>Created</small><strong>'+fmt(x.date)+'</strong></div><div><small>Carrier</small><strong>'+escape(x.carrier||'Not assigned')+'</strong></div><div><small>Tracking number</small><strong>'+escape(x.tracking_number||'Not assigned')+'</strong></div></div><div class="lab-tracking-actions">'+details+track+'</div></article>';
-  }).join('')||'<div class="lab-tracking-empty"><h3>No matching tracking records</h3><p>Your authorized Lab Account orders and shipments will appear here as they are recorded.</p></div>';
+ const pretty=v=>String(v||'Preparing').replaceAll('_',' ').replace(/\b\w/g,x=>x.toUpperCase());
+ const fmt=v=>v&&!Number.isNaN(Date.parse(v))?new Date(v).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):'—';
+ const carrierName=v=>{
+  const c=String(v||'').trim().toUpperCase().replace(/[\s.-]/g,'');
+  return c==='UPS'||c==='UNITEDPARCELSERVICE'?'UPS':c==='FEDEX'||c==='FEDERALEXPRESS'?'FedEx':c==='USPS'||c==='UNITEDSTATESPOSTALSERVICE'?'USPS':'';
+ };
+ const trackingLink=(carrier,number)=>{
+  const c=carrierName(carrier),n=String(number||'').trim();
+  if(!c||!n||n.length>80||!/^[A-Za-z0-9]+$/.test(n))return '';
+  const token=encodeURIComponent(n);
+  return c==='UPS'?'https://www.ups.com/track?loc=en_US&tracknum='+token:c==='FedEx'?'https://www.fedex.com/fedextrack/?trknbr='+token:'https://tools.usps.com/go/TrackConfirmAction.action?tLabels='+token;
+ };
+ const render=()=>{
+  const term=search.value.trim().toLowerCase(),filter=statusSelect.value;
+  const list=all.filter(x=>(filter==='all'||x.status===filter)&&(!term||[x.title,x.reference,x.carrier,x.tracking_number,x.status].some(y=>String(y||'').toLowerCase().includes(term))));
+  records.innerHTML=list.map(x=>{
+   const provider=carrierName(x.carrier),url=trackingLink(x.carrier,x.tracking_number);
+   const link=url?'<a class="lab-tracking-button lab-tracking-primary" href="'+escape(url)+'" target="_blank" rel="noopener noreferrer">Track with '+escape(provider)+'</a>':'<span class="lab-tracking-pending">Tracking link available after carrier details are assigned</span>';
+   return '<article class="lab-tracking-record"><div class="lab-tracking-record-title"><div><span class="lab-tracking-kind">'+escape(x.kind==='house'?'House Lab shipment':'Supply order')+'</span><h3>'+escape(x.title)+'</h3></div><span class="lab-tracking-status">'+escape(pretty(x.status))+'</span></div>'+
+   '<div class="lab-tracking-details"><div><small>Order reference</small><strong>'+escape(x.reference)+'</strong></div><div><small>Created</small><strong>'+fmt(x.date)+'</strong></div><div><small>Carrier</small><strong>'+escape(provider||x.carrier||'Pending')+'</strong></div><div><small>Tracking number</small><strong>'+escape(x.tracking_number||'Not assigned')+'</strong></div></div><div class="lab-tracking-actions">'+link+'</div></article>';
+  }).join('')||'<section class="lab-tracking-empty"><h3>No shipments found</h3><p>When you request supplies or Workforce dispatches a House Lab shipment, it will appear here. Tracking links become available when the shipping carrier and tracking number are entered.</p></section>';
  };
  const load=async()=>{
-  refresh.disabled=true;notice.textContent='Updating tracking information…';
-  const [supply,purchases,testing]=await Promise.allSettled([supplyCall('workspace'),orderHistoryCall(),testingOrdersCall()]);
-  const entries=[],errors=[];
-  if(supply.status==='fulfilled'){
-   const data=supply.value;
-   for(const x of data.houseShipments||[])entries.push({kind:'shipment',id:x.id,title:x.items_description||'House Lab setup shipment',description:'Supplies shipped for your House Lab Account',status:String(x.status||'preparing').toLowerCase(),reference:String(x.id||'').slice(0,8).toUpperCase(),date:x.created_at,carrier:x.carrier,tracking_number:x.tracking_number,tracking_url:x.tracking_url});
-   const catalog=new Map((data.supplies||[]).map(x=>[String(x.id),x]));
-   for(const x of data.orders||[]){
-    const lines=(x.ic_portal_supply_order_lines||[]).map(l=>(catalog.get(String(l.item_id))?.name||'Supply item')+' × '+l.quantity);
-    entries.push({kind:'supply',id:x.id,title:'Supply order '+String(x.id||'').slice(0,8).toUpperCase(),description:lines.join(', ')||'Approved supply order',status:String(x.status||'requested').toLowerCase(),reference:String(x.id||'').slice(0,8).toUpperCase(),date:x.created_at,carrier:x.carrier,tracking_number:x.tracking_number,detail_url:'/supplies.html'});
+  refresh.disabled=true;notice.textContent='Updating supply shipments…';
+  try{
+   const d=await supplyCall('workspace');
+   const catalog=new Map((d.supplies||[]).map(x=>[String(x.id),x]));
+   const rows=[];
+   for(const x of d.orders||[]){
+    const names=(x.ic_portal_supply_order_lines||[]).map(l=>(catalog.get(String(l.item_id))?.name||'Supply item')+' × '+Number(l.quantity||1));
+    rows.push({kind:'supply',id:x.id,title:names.join(', ')||'Supply order',status:String(x.status||'requested').toLowerCase(),reference:String(x.id||'').slice(0,8).toUpperCase(),date:x.created_at,carrier:x.carrier,tracking_number:x.tracking_number});
    }
-  }else errors.push('Supply tracking is temporarily unavailable: '+supply.reason.message);
-  if(purchases.status==='fulfilled'){
-   for(const x of purchases.value.orders||[])entries.push({kind:'purchase',id:x.id,title:x.order_number||'Lab purchase',description:(x.items||[]).map(i=>i.name).join(', ')||'Lab Account purchase',status:String(x.fulfillment_status||x.status||'pending').toLowerCase(),reference:x.order_number||String(x.id).slice(0,8).toUpperCase(),date:x.created_at,carrier:null,tracking_number:x.tracking_number,detail_url:'/order-view.html?id='+encodeURIComponent(x.id)});
-  }else errors.push('Lab purchase tracking is temporarily unavailable: '+purchases.reason.message);
-  if(testing.status==='fulfilled'){
-   for(const x of testing.value.orders||[])entries.push({kind:'testing',id:x.id,title:x.case_number||'Testing order',description:[x.panel_name||x.test_type,x.donor_name].filter(Boolean).join(' · ')||'Testing request',status:String(x.status||'pending').toLowerCase(),reference:x.case_number||String(x.id).slice(0,8).toUpperCase(),date:x.created_at,carrier:null,tracking_number:null,detail_url:'/testing-order-view.html?id='+encodeURIComponent(x.id)});
-  }else errors.push('Testing order tracking is temporarily unavailable: '+testing.reason.message);
-  all=entries.sort((a,b)=>Date.parse(b.date||0)-Date.parse(a.date||0));
-  const statuses=[...new Set(all.map(x=>x.status))].sort();
-  const selected=statusSelect.value;statusSelect.innerHTML='<option value="all">All statuses</option>'+statuses.map(x=>'<option value="'+escape(x)+'">'+escape(pretty(x))+'</option>').join('');statusSelect.value=statuses.includes(selected)?selected:'all';
-  kpis.innerHTML=[['All records',all.length],['Supply orders',all.filter(x=>x.kind==='supply').length],['House Lab shipments',all.filter(x=>x.kind==='shipment').length],['Lab purchases',all.filter(x=>x.kind==='purchase').length],['Testing orders',all.filter(x=>x.kind==='testing').length]].map(([label,count])=>'<div><span>'+escape(label)+'</span><strong>'+count+'</strong></div>').join('');
-  notice.textContent=errors.length?errors.join(' '):'Tracking updated from your Lab Account records.';
-  view();refresh.disabled=false;
+   for(const x of d.houseShipments||[]){
+    rows.push({kind:'house',id:x.id,title:x.items_description||'House Lab setup supplies',status:String(x.status||'preparing').toLowerCase(),reference:String(x.id||'').slice(0,8).toUpperCase(),date:x.created_at,carrier:x.carrier,tracking_number:x.tracking_number});
+   }
+   all=rows.sort((a,b)=>Date.parse(b.date||0)-Date.parse(a.date||0));
+   const opts=[...new Set(all.map(x=>x.status))].sort(),previous=statusSelect.value;
+   statusSelect.innerHTML='<option value="all">All statuses</option>'+opts.map(x=>'<option value="'+escape(x)+'">'+escape(pretty(x))+'</option>').join('');
+   statusSelect.value=opts.includes(previous)?previous:'all';
+   kpis.innerHTML=[['Shipments & requests',all.length],['Waiting to ship',all.filter(x=>['requested','approved','packing','preparing','pending'].includes(x.status)).length],['Shipped',all.filter(x=>x.status==='shipped').length],['Delivered',all.filter(x=>x.status==='delivered').length]].map(([label,total])=>'<div><span>'+escape(label)+'</span><strong>'+total+'</strong></div>').join('');
+   notice.textContent=all.length+' supply shipment record(s) available.';
+   render();
+  }catch(e){notice.textContent=e.message||'Unable to load shipment tracking';notice.classList.add('lab-consortium-error');records.innerHTML='';kpis.innerHTML=''}
+  finally{refresh.disabled=false}
  };
- for(const input of [search,kind,statusSelect])input.addEventListener(input===search?'input':'change',view);
- refresh.addEventListener('click',load);await load();
+ search.addEventListener('input',render);statusSelect.addEventListener('change',render);refresh.addEventListener('click',load);await load();
 }
 
 const render=(user,intake={})=>{
