@@ -955,9 +955,20 @@ async function initTracking(){
 
 const render=(user,intake={})=>{
  document.body.classList.remove('loading');document.documentElement.classList.remove('s4u-auth-pending');
+ const permittedCodes=new Set(Array.isArray(activeEntitlement?.feature_codes)?activeEntitlement.feature_codes:[]);
+ const advancedFeature=ADVANCED_FEATURES[current];
+ const requiredFeature=advancedFeature?({directory:'client_directory',ccf:'digital_coc_archive',delivery:'automatic_result_delivery',alerts:'supply_reorder_alerts',analytics:'analytics_reporting'})[advancedFeature.feature]:null;
+ const consortiumRoute=['consortium','consortium-form','consortium-detail'].includes(current);
+ if((requiredFeature&&!permittedCodes.has(requiredFeature))||(consortiumRoute&&!(activeEntitlement?.features?.consortium===true&&permittedCodes.has('consortium_pools')))){
+   document.querySelector('#workspace').innerHTML='<div class="workforce-error"><h1>Feature not included</h1><p>Your Lab Account plan does not include access to this feature.</p><a href="/store.html">View available plan upgrades</a></div>';
+   return;
+ }
  const page=names[current]||'Workforce';
  const icons={'dashboard':'⌂','lab-accounts':'⌬','results':'✓','billing':'$','documents':'▤','supplies':'▣','testing-order':'◆','order-history':'≡','client-directory':'▣','ccf-archive':'▤','result-delivery':'↗','supply-alerts':'◷','analytics':'▥','consortium':'◉','tracking':'↗','store':'▦'};
- const permittedRoutes=routes.filter(r=>(!['consortium','consortium-form','consortium-detail'].includes(r.key)||activeEntitlement?.features?.consortium===true)&&(!ADVANCED_FEATURES[r.key]||(activeEntitlement?.features?.lab_account===true&&activeEntitlement?.preview!==true)));
+ const codes=new Set(Array.isArray(activeEntitlement?.feature_codes)?activeEntitlement.feature_codes:[]);
+ const advancedAllowed=r=>!ADVANCED_FEATURES[r.key]||(activeEntitlement?.preview!==true&&codes.has(({directory:'client_directory',ccf:'digital_coc_archive',delivery:'automatic_result_delivery',alerts:'supply_reorder_alerts',analytics:'analytics_reporting'})[ADVANCED_FEATURES[r.key].feature]));
+ const consortiumAllowed=r=>!['consortium','consortium-form','consortium-detail'].includes(r.key)||(activeEntitlement?.features?.consortium===true&&codes.has('consortium_pools'));
+ const permittedRoutes=routes.filter(r=>consortiumAllowed(r)&&advancedAllowed(r));
  // Keep destination pages available by their parent workflow without crowding the navigation.
  const navigationSections=[
   {title:'Overview',keys:['dashboard','lab-accounts']},
@@ -1011,6 +1022,10 @@ function navigateToPortalPage(path,push=true){
  if(!activeUser||!activeIntake)return false;
  const route=routes.find(r=>r.url===path);
  if(!route)return false;
+ const codes=new Set(Array.isArray(activeEntitlement?.feature_codes)?activeEntitlement.feature_codes:[]);
+ const f=ADVANCED_FEATURES[route.key];
+ if(f&&!codes.has(({directory:'client_directory',ccf:'digital_coc_archive',delivery:'automatic_result_delivery',alerts:'supply_reorder_alerts',analytics:'analytics_reporting'})[f.feature]))return false;
+ if(['consortium','consortium-form','consortium-detail'].includes(route.key)&&!(activeEntitlement?.features?.consortium===true&&codes.has('consortium_pools')))return false;
  if(current===route.key)return true;
  current=route.key;document.body.dataset.portalPage=current;
  if(push)history.pushState({portalPage:current},'',path);
