@@ -84,17 +84,18 @@ Deno.serve(async(req:Request)=>{
   }
   if(action==="detail"||action==="export"){
    const p=await own(body.id);if(!p)return send({error:"Program not found"},404);
-   const [members,events]=await Promise.all([
+   const [members,events,schedules]=await Promise.all([
     db.from("lab_customer_consortium_members").select("*").eq("consortium_id",p.id).eq("owner_user_id",uid).order("created_at",{ascending:true}).limit(5000),
-    db.from("lab_customer_consortium_events").select("*").eq("consortium_id",p.id).eq("owner_user_id",uid).order("created_at",{ascending:true}).limit(10000)
+    db.from("lab_customer_consortium_events").select("*").eq("consortium_id",p.id).eq("owner_user_id",uid).order("created_at",{ascending:true}).limit(10000),
+    db.from("lab_customer_selection_schedules").select("id,selection_type,scheduled_for,status,created_at").eq("consortium_id",p.id).eq("customer_user_id",uid).order("created_at",{ascending:true}).limit(1000)
    ]);
-   if(members.error||events.error)throw members.error||events.error;
+   if(members.error||events.error||schedules.error)throw members.error||events.error||schedules.error;
    if(action==="export"){
     const update=await db.from("lab_customer_consortiums").update({last_exported_at:new Date().toISOString()}).eq("id",p.id).eq("owner_user_id",uid);
     if(update.error)throw update.error;
    }
    const rule=p.program_type==="DOT"?await activeRule(p.dot_agency,p.effective_date):null;
-   return send({program:p,members:members.data||[],events:events.data||[],regulatory_rule:rule,exported:action==="export",export_note:"Official laboratory results, regulatory selection histories and financial records maintained separately are not included and are not deleted with this customer-managed program."});
+   return send({program:p,members:members.data||[],events:events.data||[],schedules:schedules.data||[],regulatory_rule:rule,exported:action==="export",export_note:"Official laboratory results, regulatory selection histories and financial records maintained separately are not included and are not deleted with this customer-managed program."});
   }
   if(action==="add_member"){
    const p=await own(body.id);if(!p)return send({error:"Program not found"},404);
