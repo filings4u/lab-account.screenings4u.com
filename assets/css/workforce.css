@@ -468,3 +468,16 @@ body[data-portal-page="client-directory"] .advanced-form .full textarea{min-widt
 body[data-portal-page="client-directory"] #advancedRows .premium-request{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
 body[data-portal-page="client-directory"] #advancedRows .premium-request strong,body[data-portal-page="client-directory"] #advancedRows .premium-request p{flex-basis:100%}
 @media(max-width:700px){.lab-overview-actions{width:100%}.lab-overview-actions .dash-action{flex:1 1 200px}body[data-portal-page="client-directory"] .advanced-form [type="submit"],body[data-portal-page="client-directory"] .advanced-form [type="reset"]{width:100%}}
+
+
+/* Workforce Lab Account navigation: grouped primary routes, without detail-only clutter. */
+.side .nav .nav-title{padding:11px 12px 5px}
+.side .nav-section{padding:3px 0 8px}
+.side .nav-section+.nav-section{border-top:1px solid rgba(255,255,255,.12);padding-top:11px;margin-top:3px}
+.side .nav-section-title{padding:7px 12px 6px;color:#B7C9DF;font-size:.68rem;font-weight:850;letter-spacing:.085em;text-transform:uppercase}
+.side .nav-section a{margin:2px 0;min-height:36px}
+.side .nav-section a[aria-current="page"]{background:#fff;color:#01122F;box-shadow:inset 4px 0 0 #FDC102}
+.mobile-nav-links .nav-section{padding:8px 0}
+.mobile-nav-links .nav-section+.nav-section{border-top:1px solid #dce5ef}
+.mobile-nav-links .nav-section-title{padding:8px 12px 5px;color:#536d89;font-size:.72rem;font-weight:850;letter-spacing:.065em;text-transform:uppercase}
+.mobile-nav-links .nav-section a[aria-current="page"]{background:#fff;color:#01122F;box-shadow:inset 4px 0 0 #FDC102}
