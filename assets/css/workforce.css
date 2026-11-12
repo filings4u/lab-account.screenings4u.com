@@ -542,3 +542,35 @@ body[data-portal-page="client-directory"] #advancedRows .premium-request strong,
 
 .lab-consortium-legacy{padding:12px 0;border-top:1px solid #e3ebf4;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:.87rem}
 .lab-consortium-legacy strong{color:#01122F}.lab-consortium-legacy span{color:#5f7792}
+
+/* Lab Account tracking workspace */
+.lab-tracking-page{display:grid;gap:18px;min-width:0}
+.lab-tracking-page .lab-overview-head{display:flex;justify-content:space-between;gap:16px;align-items:start;flex-wrap:wrap}
+.lab-tracking-page .lab-overview-head h2{font-size:1.3rem;color:#01122F;margin:0 0 8px}
+.lab-tracking-page .lab-overview-head p{margin:0;color:#617894;line-height:1.65}
+.lab-tracking-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.lab-tracking-kpis>div{border:1px solid #dce5ef;border-radius:12px;background:#f6f9fd;padding:17px;display:grid;gap:8px}
+.lab-tracking-kpis span{font-size:.78rem;color:#5b7390}
+.lab-tracking-kpis strong{font-size:1.6rem;color:#01122F}
+.lab-tracking-filters{display:grid;grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr));gap:13px;align-items:end}
+.lab-tracking-filters label{display:grid;gap:7px;color:#01122F;font-size:.82rem;font-weight:800}
+.lab-tracking-filters input,.lab-tracking-filters select{height:42px;width:100%;border:1px solid #cbd9e9;border-radius:9px;background:#fff;color:#01122F;padding:8px 12px;font:inherit;font-weight:500}
+.lab-tracking-records{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.lab-tracking-record{border:1px solid #dce5ef;background:white;border-radius:14px;padding:19px;display:grid;gap:15px;min-width:0}
+.lab-tracking-record-title{display:flex;justify-content:space-between;gap:12px;align-items:start}
+.lab-tracking-record-title h3{font-size:1.08rem;color:#01122F;margin:8px 0 5px}
+.lab-tracking-record-title p{color:#627a95;font-size:.82rem;line-height:1.55;margin:0}
+.lab-tracking-kind{font-size:.7rem;text-transform:uppercase;color:#54718e;font-weight:850;letter-spacing:.05em}
+.lab-tracking-status{flex:none;background:#eaf1fa;color:#173a63;padding:6px 9px;border-radius:999px;font-size:.73rem;font-weight:850}
+.lab-tracking-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.lab-tracking-details>div{display:grid;gap:5px;min-width:0}
+.lab-tracking-details small{color:#657d98;font-size:.75rem}
+.lab-tracking-details strong{font-size:.85rem;color:#01122F;overflow-wrap:anywhere}
+.lab-tracking-actions{display:flex;gap:10px;flex-wrap:wrap}
+.lab-tracking-button{border:1px solid #b9cce0;border-radius:9px;background:#fff;padding:9px 13px;color:#01122F;font-size:.8rem;font-weight:850;text-decoration:none}
+.lab-tracking-button:hover{background:#fff7db;border-color:#FDC102}
+.lab-tracking-empty{grid-column:1/-1;border:1px dashed #b6c9dd;border-radius:12px;text-align:center;padding:34px}
+.lab-tracking-empty h3{margin:0 0 10px;color:#01122F}
+.lab-tracking-empty p,.lab-tracking-note{color:#607891;font-size:.84rem;line-height:1.65}
+@media(max-width:1100px){.lab-tracking-records{grid-template-columns:1fr}.lab-tracking-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:670px){.lab-tracking-filters,.lab-tracking-kpis{grid-template-columns:1fr}.lab-tracking-record-title{flex-wrap:wrap}.lab-tracking-page .lab-overview-head button{width:100%}.lab-tracking-details{grid-template-columns:1fr}}
