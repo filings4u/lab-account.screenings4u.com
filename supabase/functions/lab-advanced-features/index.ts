@@ -20,9 +20,7 @@ Deno.serve(async req=>{
   const b=await req.json().catch(()=>({}));
   const feature=String(b.feature||""),action=String(b.action||"list");
   if(!Object.hasOwn(codes,feature))return send({error:"Unknown Lab Account feature"},400);
-  const associations=await db.from("lab_portal_plan_features").select("feature_code").eq("plan_sku",ent.plan);
-  if(associations.error)throw associations.error;
-  if(!(associations.data||[]).some(x=>x.feature_code===codes[feature]))return send({error:"Feature not included with the purchased plan"},403);
+  if(!Array.isArray(ent.feature_codes)||!ent.feature_codes.includes(codes[feature]))return send({error:"This feature is not currently available with your purchased Lab Account plan"},403);
   const owner=user.id;
   if(feature==="directory"){
    if(action==="list"){
